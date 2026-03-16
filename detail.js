@@ -1,4 +1,4 @@
-import { fetchGameDetails, fetchStores, getStoreIconUrl, fetchDealDetails, fetchSteamAppDetails, fetchSteamReviews, translateToKorean, containsKorean, sanitizeHTML, isValidID, setPriceAlert } from './api.js';
+import { fetchGameDetails, fetchStores, getStoreIconUrl, fetchDealDetails, fetchSteamAppDetails, fetchSteamReviews, translateToKorean, containsKorean, sanitizeHTML, isValidID, setPriceAlert, extractSteamAppIDFromThumb } from './api.js';
 import { isInWishlist, toggleWishlist } from './wishlist-manager.js';
 
 let storesMap = {};
@@ -308,6 +308,22 @@ async function initGameDetail() {
             // If dealData provides more comprehensive info, use it for these sections
             info = dealData.gameInfo;
             
+            // 🔥 Data Correction: Fix cases where Title is "-" or steamAppID is wrong/missing
+            const extractedAppID = extractSteamAppIDFromThumb(info.thumb);
+            if (extractedAppID && extractedAppID !== info.steamAppID) {
+                console.warn(`[Data Fix] steamAppID mismatch detected. API: ${info.steamAppID}, Thumb extracted: ${extractedAppID}`);
+                info.steamAppID = extractedAppID;
+            }
+
+            // If game title is "-" (common in CheapShark for non-English games), use a placeholder until Steam loads
+            if (info.title === '-' || !info.title) {
+                heroTitleContainer.textContent = 'Loading Game Name...';
+                document.title = '게임 정보 불러오는 중... - GameCatcher';
+            } else {
+                heroTitleContainer.textContent = info.title;
+                document.title = `${info.title} 정보 및 최저가 - GameCatcher`;
+            }
+
             // Meta Pills (Release Date & Publisher)
             const pillsContainer = document.getElementById('gameMetaPills');
             if (pillsContainer) {

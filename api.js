@@ -228,6 +228,18 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
 }
 
 /**
+ * Extracts Steam AppID from a typical Steam thumbnail URL.
+ * Example: https://cdn.akamai.steamstatic.com/steam/apps/3069040/capsule_sm_120.jpg -> 3069040
+ * @param {string} thumbUrl 
+ * @returns {string|null}
+ */
+export function extractSteamAppIDFromThumb(thumbUrl) {
+    if (!thumbUrl) return null;
+    const match = thumbUrl.match(/\/apps\/(\d+)\//);
+    return match ? match[1] : null;
+}
+
+/**
  * Checks whether the given text contains any Korean characters.
  * @param {string} text
  * @returns {boolean}
@@ -355,7 +367,7 @@ export async function fetchSteamReviews(steamAppID, count = 20) {
             }
 
             if (data && data.success && data.reviews) {
-                console.log(`Successfully fetched Steam reviews via proxy: ${proxyUrl}`);
+                console.log(`Successfully fetched Steam reviews via proxy: ${proxy.url}`);
                 
                 // Force HTTPS for any URLs in reviews if present
                 const forceHttps = (obj) => {
@@ -373,9 +385,9 @@ export async function fetchSteamReviews(steamAppID, count = 20) {
             }
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.warn(`Steam reviews TIMEOUT (${proxyUrl})`);
+                console.warn(`Steam reviews TIMEOUT (${proxy.url})`);
             } else {
-                console.warn(`Steam reviews proxy failed (${proxyUrl}):`, error.message);
+                console.warn(`Steam reviews proxy failed (${proxy.url}):`, error.message);
             }
             continue;
         }

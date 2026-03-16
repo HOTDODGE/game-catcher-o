@@ -1,4 +1,4 @@
-import { fetchDeals, fetchStores, getStoreIconUrl, sanitizeHTML, searchGames } from './api.js';
+import { fetchDeals, fetchStores, getStoreIconUrl, sanitizeHTML, searchGames, extractSteamAppIDFromThumb } from './api.js';
 import { isInWishlist, toggleWishlist } from './wishlist-manager.js';
 
 // Elements
@@ -39,22 +39,29 @@ function createGameCardHTML(deal) {
     const salePrice   = `$${Number(deal.salePrice).toFixed(2)}`;
     const normalPrice = `$${Number(deal.normalPrice).toFixed(2)}`;
 
+    // 🔥 Correction: If title is "-" or empty, try extracting from thumb or display placeholder
+    let displayedTitle = deal.title;
+    if (!displayedTitle || displayedTitle === '-') {
+        const extractedID = extractSteamAppIDFromThumb(deal.thumb);
+        displayedTitle = extractedID ? `Steam Game #${extractedID}` : 'Unknown Game';
+    }
+
     return `
         <article class="game-card" style="cursor: pointer;" onclick="window.location.href='game-detail.html?id=${deal.gameID}&dealID=${deal.dealID}'">
             <div class="card-image-wrap">
                 <div class="badge-discount">-${discount}%</div>
                 <div class="badge-platform">${storeName}</div>
-                <img src="${thumbUrl}" alt="${deal.title} cover" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultThumbnail}'" loading="lazy">
+                <img src="${thumbUrl}" alt="${displayedTitle} cover" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultThumbnail}'" loading="lazy">
             </div>
             <div class="card-content">
-                <h3 class="game-title" title="${deal.title}">${deal.title}</h3>
+                <h3 class="game-title" title="${displayedTitle}">${displayedTitle}</h3>
                 <div class="game-meta">Steam Rating: <span style="color:var(--text-main); font-weight:bold;">${deal.steamRatingPercent || 'N/A'}%</span></div>
                 <div class="card-footer" onclick="event.stopPropagation()">
                     <div class="flex items-center gap-2" style="margin-right: auto;">
                         ${hlBadgeHTML}
                         <button class="btn-wishlist ${isWishlisted ? 'active' : ''}" 
                                 title="위시리스트 추가" 
-                                onclick="event.stopPropagation(); window.handleWishlistToggle(event, '${deal.gameID}', '${deal.dealID}', '${deal.title.replace(/'/g, "\\'")}', '${deal.thumb}')">
+                                onclick="event.stopPropagation(); window.handleWishlistToggle(event, '${deal.gameID}', '${deal.dealID}', '${displayedTitle.replace(/'/g, "\\'")}', '${deal.thumb}')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="${isWishlisted ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
                         </button>
                     </div>
