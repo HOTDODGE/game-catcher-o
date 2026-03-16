@@ -484,7 +484,7 @@ async function initGameDetail() {
 
                     if (primaryData) {
                         // Priority: Update Title/ID before possible translation wait
-                        if (primaryData.name && (heroTitleContainer.textContent === '-' || heroTitleContainer.textContent === '')) {
+                        if (primaryData.name && (heroTitleContainer.textContent === '-' || heroTitleContainer.textContent === '' || heroTitleContainer.textContent === 'Loading Game Name...')) {
                             heroTitleContainer.textContent = primaryData.name;
                             document.title = `${primaryData.name} 정보 및 최저가 - GameCatcher`;
                         }
