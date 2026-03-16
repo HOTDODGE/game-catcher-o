@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameCatcher - 통합 게임 할인 정보</title>
+    <!-- Google Fonts 연결: Inter 사용 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://accounts.google.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; img-src * data:; connect-src 'self' https://www.cheapshark.com https://store.steampowered.com https://api.allorigins.win https://corsproxy.io https://translate.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; frame-src https://accounts.google.com;">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+
+    <!-- Performance Optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://accounts.google.com">
+
+    <link rel="stylesheet" href="style.css">
+    <!-- Load placeholder images effectively without JS for now -->
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container flex justify-between items-center">
+            <div class="logo">
+                <span class="logo-icon">🎮</span> <a href="index.html" style="color: inherit;" data-ko="GameCatcher" data-en="GameCatcher">GameCatcher</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#" class="active" data-ko="홈" data-en="Home">홈</a></li>
+                <li><a href="all-games.html" data-ko="모든 게임 (검색)" data-en="All Games (Search)">모든 게임 (검색)</a></li>
+                <li><a href="deep-discounts.html" data-ko="파격 할인" data-en="Deep Discounts">파격 할인</a></li>
+                <li><a href="wishlist.html" data-ko="위시리스트" data-en="Wishlist">위시리스트</a></li>
+            </ul>
+            <div class="flex" style="align-items: center; gap: var(--spacing-3);">
+                <button class="nav-icon-btn" title="언어 변경: English / 한국어" onclick="toggleLanguage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span style="font-size: 0.6rem; font-weight: bold; line-height: 1;">KO</span>
+                </button>
+                <div id="g_id_signin"></div>
+                <div id="userProfile" class="user-profile-nav" style="display: none;">
+                    <img id="userAvatar" src="" alt="Profile" class="avatar-sm">
+                    <span id="userName" class="user-name"></span>
+                    <button id="logoutBtn" class="btn btn-ghost btn-sm" data-ko="로그아웃" data-en="Logout">로그아웃</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="container hero-container">
+            <div class="hero-content">
+                <h1 data-ko="세상의 모든 게임 할인을 한 곳에서." data-en="All the World's Game Deals in One Place.">세상의 모든 게임 할인을 한 곳에서.</h1>
+                <p data-ko="Steam, Epic Games, GOG의 최저가 할인 정보를 실시간으로 비교하고, 알뜰하게 구매하세요." data-en="Compare real-time lowest price deals from Steam, Epic Games, and GOG, and buy smart.">Steam, Epic Games, GOG의 최저가 할인 정보를 실시간으로 비교하고, 알뜰하게 구매하세요.</p>
+                
+                <div class="search-container">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" class="search-input" placeholder="원하는 게임을 검색해보세요 (예: Cyberpunk 2077)" data-placeholder-ko="원하는 게임을 검색해보세요 (예: Cyberpunk 2077)" data-placeholder-en="Search for a game (e.g. Cyberpunk 2077)">
+                    <div id="searchSuggestions" class="search-suggestions"></div>
+                </div>
+            </div>
+
+            <div class="hero-visual">
+                <div class="picker-card hero-picker">
+                    <div class="picker-header">
+                        <h2 data-ko="🎲 랜덤 게임 뽑기" data-en="🎲 Random Game Picker">🎲 랜덤 게임 뽑기</h2>
+                    </div>
+                    
+                    <div class="picker-display-container">
+                        <div id="randomPickerDisplay" class="picker-display empty">
+                            <div class="picker-placeholder">
+                                <span class="picker-icon">?</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="picker-controls">
+                        <button id="drawBtn" class="btn btn-primary btn-lg" data-ko="뽑기 시작!" data-en="Draw!">뽑기 시작!</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-group" id="platformFilterGroup">
+                <button class="filter-btn active" data-platform="all">전체 플랫폼</button>
+                <button class="filter-btn" data-platform="steam">Steam</button>
+                <button class="filter-btn" data-platform="epic">Epic Games</button>
+                <button class="filter-btn" data-platform="gog">GOG</button>
+            </div>
+        </div>
+
+        <!-- Section 1: Historic Lows -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 style="margin: 0;" data-ko="🔥 역대 최저가 (Historic Lows)" data-en="🔥 Historic Lows">🔥 역대 최저가 (Historic Lows)</h2>
+            <a href="all-games.html" class="text-muted" style="text-decoration: none; font-size: var(--font-size-sm);" data-ko="더보기 &rarr;" data-en="View All &rarr;">더보기 &rarr;</a>
+        </div>
+        
+        <!-- Game Grid 1: Historic Lows -->
+        <div id="historicLowsGrid" class="grid grid-3 mb-12">
+            <!-- Cards will be injected by dashboard.js -->
+        </div>
+
+        <!-- Section 2: Popular Deals -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 style="margin: 0;" data-ko="⭐ 인기 할인 게임 (Popular Deals)" data-en="⭐ Popular Deals">⭐ 인기 할인 게임 (Popular Deals)</h2>
+            <a href="all-games.html" class="text-muted" style="text-decoration: none; font-size: var(--font-size-sm);" data-ko="더보기 &rarr;" data-en="View All &rarr;">더보기 &rarr;</a>
+        </div>
+
+        <!-- Game Grid 2: Popular Deals -->
+        <div id="popularDealsGrid" class="grid grid-3 mb-12">
+            <!-- Cards will be injected by dashboard.js -->
+        </div>
+        
+        <div class="text-center mt-8 mb-4">
+            <a href="all-games.html" class="btn btn-secondary" style="padding: var(--spacing-3) var(--spacing-8); display: inline-block; text-decoration: none;" data-ko="모든 할인 게임 탐색하기 &rarr;" data-en="Explore All Deals &rarr;">모든 할인 게임 탐색하기 &rarr;</a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p data-ko="&copy; 2026 GameCatcher. 모든 권리 보유." data-en="&copy; 2026 GameCatcher. All rights reserved.">&copy; 2026 GameCatcher. All rights reserved.</p>
+            <p class="mt-2 text-muted" style="font-size: 12px;" data-ko="본 사이트는 각 플랫폼의 제휴 프로그램을 통해 수익을 창출할 수 있습니다." data-en="This site may earn revenue through the affiliate programs of each platform.">본 사이트는 각 플랫폼의 제휴 프로그램을 통해 수익을 창출할 수 있습니다.</p>
+        </div>
+    </footer>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleLogin()"></script>
+    <script src="translation.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script type="module" src="dashboard.js"></script>
+</body>
+</html>

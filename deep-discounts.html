@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파격 할인 게임 - GameCatcher</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://accounts.google.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; img-src * data:; connect-src 'self' https://www.cheapshark.com https://store.steampowered.com https://api.allorigins.win https://corsproxy.io https://translate.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; frame-src https://accounts.google.com;">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    
+    <!-- Performance Optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://accounts.google.com">
+
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page-header {
+            padding: var(--spacing-12) 0 var(--spacing-8);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(15, 23, 42, 0) 100%);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: var(--spacing-8);
+        }
+        .discount-highlight {
+            color: #ef4444;
+            font-weight: 800;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container flex justify-between items-center">
+            <div class="logo">
+                <span class="logo-icon">🎮</span> <a href="index.html" style="color: inherit;" data-ko="GameCatcher" data-en="GameCatcher">GameCatcher</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html" data-ko="홈" data-en="Home">홈</a></li>
+                <li><a href="all-games.html" data-ko="모든 게임 (검색)" data-en="All Games (Search)">모든 게임 (검색)</a></li>
+                <li><a href="deep-discounts.html" class="active" data-ko="파격 할인" data-en="Deep Discounts">파격 할인</a></li>
+                <li><a href="wishlist.html" data-ko="위시리스트" data-en="Wishlist">위시리스트</a></li>
+            </ul>
+            <div class="flex" style="align-items: center; gap: var(--spacing-3);">
+                    <span style="font-size: 0.6rem; font-weight: bold;">KO</span>
+                </button>
+                <div id="g_id_signin"></div>
+                <div id="userProfile" class="user-profile-nav" style="display: none;">
+                    <img id="userAvatar" src="" alt="Profile" class="avatar-sm">
+                    <span id="userName" class="user-name"></span>
+                    <button id="logoutBtn" class="btn btn-ghost btn-sm" data-ko="로그아웃" data-en="Logout">로그아웃</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <header class="page-header text-center">
+        <div class="container">
+            <h1 data-ko="🔥 파격 할인 (80%+)" data-en="🔥 Deep Discounts (80%+)">🔥 파격 할인 (80%+)</h1>
+            <p class="text-muted mt-2" data-ko="지금 이 순간, 가장 높은 할인율을 기록 중인 게임들을 놓치지 마세요!" data-en="Don't miss out on the games with the highest discount rates right now!">지금 이 순간, 가장 높은 할인율을 기록 중인 게임들을 놓치지 마세요!</p>
+        </div>
+    </header>
+
+    <main class="container mb-12">
+        <div id="deepDiscountsGrid" class="grid grid-4 grid-container">
+            <!-- Items injected by deep-discounts.js -->
+        </div>
+    </main>
+
+    <footer>
+        <div class="container text-center">
+            <p data-ko="&copy; 2026 GameCatcher. 모든 권리 보유." data-en="&copy; 2026 GameCatcher. All rights reserved.">&copy; 2026 GameCatcher. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleLogin()"></script>
+    <script src="translation.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script type="module" src="deep-discounts.js"></script>
+</body>
+</html>

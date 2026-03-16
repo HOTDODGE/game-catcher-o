@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>모든 할인 게임 - GameCatcher</title>
+    <!-- Google Fonts 연결: Inter 사용 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://accounts.google.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; img-src * data:; connect-src 'self' https://www.cheapshark.com https://store.steampowered.com https://api.allorigins.win https://corsproxy.io https://translate.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; frame-src https://accounts.google.com;">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    
+    <!-- Performance Optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://accounts.google.com">
+    
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page-header {
+            padding: var(--spacing-8) 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: var(--spacing-8);
+            background-color: var(--surface-color);
+        }
+
+        .sidebar-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: var(--spacing-8);
+            align-items: start;
+        }
+
+        .filter-sidebar {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-6);
+            position: sticky;
+            top: 80px;
+        }
+
+        .filter-section {
+            margin-bottom: var(--spacing-6);
+        }
+
+        .filter-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-title {
+            font-size: var(--font-size-sm);
+            font-weight: var(--weight-semibold);
+            color: var(--text-main);
+            margin-bottom: var(--spacing-3);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: color var(--transition-fast);
+        }
+
+        .checkbox-label:hover {
+            color: var(--text-main);
+        }
+
+        .checkbox-input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+        }
+
+        .range-slider {
+            width: 100%;
+            margin-top: var(--spacing-2);
+            accent-color: var(--primary-color);
+        }
+
+        .search-results-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-6);
+            padding-bottom: var(--spacing-4);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sort-select {
+            background-color: var(--surface-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            /* 12px 좌우 패딩 */
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            text-align: center;
+            /* 가운데 정렬 */
+            appearance: none;
+            /* 디폴트 화살표 제거 */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            /* 커스텀 화살표 배경 이미지 리셋 */
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 36px;
+            /* 화살표가 들어갈 공간 확보 (우측 패딩 추가 조절) */
+        }
+
+        .sort-select:focus {
+            border-color: var(--primary-color);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-2);
+            margin-top: var(--spacing-12);
+        }
+
+        .page-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-md);
+            font-weight: var(--weight-medium);
+            cursor: pointer;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            transition: all var(--transition-fast);
+        }
+
+        .page-btn:hover:not(.active) {
+            background-color: var(--secondary-hover);
+        }
+
+        .page-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* ── Skeleton Card Loading State ── */
+        @keyframes sk-shimmer {
+            0% {
+                background-position: -600px 0;
+            }
+
+            100% {
+                background-position: 600px 0;
+            }
+        }
+
+        .skeleton-card {
+            pointer-events: none;
+        }
+
+        .skeleton-card .card-image-wrap {
+            background: rgba(255, 255, 255, 0.06) !important;
+        }
+
+        .sk-block {
+            background: linear-gradient(90deg,
+                    rgba(255, 255, 255, 0.05) 25%,
+                    rgba(255, 255, 255, 0.13) 50%,
+                    rgba(255, 255, 255, 0.05) 75%);
+            background-size: 600px 100%;
+            animation: sk-shimmer 1.4s ease-in-out infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container flex justify-between items-center">
+            <div class="logo">
+                <span class="logo-icon">🎮</span> <a href="index.html" style="color: inherit;" data-ko="GameCatcher" data-en="GameCatcher">GameCatcher</a>
+            </div>
+            <ul class="nav-links">
+                <li><a href="index.html" data-ko="홈" data-en="Home">홈</a></li>
+                <li><a href="all-games.html" class="active" data-ko="모든 게임 (검색)" data-en="All Games (Search)">모든 게임 (검색)</a></li>
+                <li><a href="deep-discounts.html" data-ko="파격 할인" data-en="Deep Discounts">파격 할인</a></li>
+                <li><a href="wishlist.html" data-ko="위시리스트" data-en="Wishlist">위시리스트</a></li>
+            </ul>
+            <div class="flex" style="align-items: center; gap: var(--spacing-3);">
+                <button class="nav-icon-btn" title="언어 변경: English / 한국어" onclick="toggleLanguage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path
+                            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                        </path>
+                    </svg>
+                    <span style="font-size: 0.6rem; font-weight: bold; line-height: 1;">KO</span>
+                </button>
+                <div id="g_id_signin"></div>
+                <div id="userProfile" class="user-profile-nav" style="display: none;">
+                    <img id="userAvatar" src="" alt="Profile" class="avatar-sm">
+                    <span id="userName" class="user-name"></span>
+                    <button id="logoutBtn" class="btn btn-ghost btn-sm" data-ko="로그아웃" data-en="Logout">로그아웃</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <header class="page-header">
+        <div class="container"
+            style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: var(--spacing-4);">
+            <div>
+                <h1 style="margin-bottom: var(--spacing-2);" data-ko="모든 할인 게임" data-en="All Discounted Games">모든 할인 게임</h1>
+                <p style="margin: 0; font-size: var(--font-size-base);" data-ko="강력한 필터를 통해 원하는 조건의 게임을 정확하게 찾아보세요." data-en="Find exactly the games you want with powerful filters.">강력한 필터를 통해 원하는 조건의 게임을 정확하게 찾아보세요.</p>
+            </div>
+            <!-- Mobile Filter Toggle Button -->
+            <button class="btn btn-secondary mobile-filter-btn" id="filterToggleBtn"
+                style="display: none; align-items: center; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <span data-ko="필터 옵션" data-en="Filter Options">필터 옵션</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="container mb-12">
+        <div class="sidebar-layout">
+
+            <!-- Filter Sidebar -->
+            <aside class="filter-sidebar" id="filterSidebar">
+                <!-- Mobile Close Button -->
+                <button class="filter-close-btn" id="filterCloseBtn"
+                    style="display: none; position: absolute; top: var(--spacing-4); right: var(--spacing-4); background: transparent; border: none; color: var(--text-main); cursor: pointer; border-radius: 50%; padding: 4px;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+
+                <div class="search-container" style="max-width: 100%; margin-bottom: 2.5rem;">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" class="input" placeholder="키워드 검색..." data-placeholder-ko="키워드 검색..."
+                        data-placeholder-en="Search keywords..."
+                        style="padding-left: 2.5rem; font-size: var(--font-size-sm); border-radius: var(--radius-full);">
+                </div>
+
+                <div class="filter-section">
+                    <h3 class="filter-title" data-ko="플랫폼 (Store)" data-en="Platforms (Store)">플랫폼 (Store)</h3>
+                    <div class="filter-checkbox-group">
+                        <input type="checkbox" id="plat-steam" class="filter-custom-input" checked>
+                        <label for="plat-steam" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            Steam
+                        </label>
+
+                        <input type="checkbox" id="plat-epic" class="filter-custom-input" checked>
+                        <label for="plat-epic" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            Epic Games
+                        </label>
+
+                        <input type="checkbox" id="plat-gog" class="filter-custom-input" checked>
+                        <label for="plat-gog" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            GOG.com
+                        </label>
+
+                        <input type="checkbox" id="plat-humble" class="filter-custom-input">
+                        <label for="plat-humble" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            Humble Store
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h3 class="filter-title" data-ko="할인율" data-en="Discount Rate">할인율</h3>
+                    <div class="filter-checkbox-group">
+                        <input type="radio" id="disc-any" name="discount" class="filter-custom-input">
+                        <label for="disc-any" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            <span data-ko="상관없음" data-en="Any">상관없음</span>
+                        </label>
+
+                        <input type="radio" id="disc-30" name="discount" class="filter-custom-input" checked>
+                        <label for="disc-30" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            <span data-ko="-30% 이상" data-en="-30% or more">-30% 이상</span>
+                        </label>
+
+                        <input type="radio" id="disc-50" name="discount" class="filter-custom-input">
+                        <label for="disc-50" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            <span data-ko="-50% 이상" data-en="-50% or more">-50% 이상</span>
+                        </label>
+
+                        <input type="radio" id="disc-75" name="discount" class="filter-custom-input">
+                        <label for="disc-75" class="filter-custom-label">
+                            <span class="filter-check-icon"></span>
+                            <span data-ko="-75% 이상 (파격 할인)" data-en="-75% or more (Deep Discount)">-75% 이상 (파격
+                                할인)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h3 class="filter-title" data-ko="최대 가격 (원)" data-en="Max Price ($)">최대 가격 (원)</h3>
+                    <div>
+                        <input type="range" class="range-slider" id="priceSliderInput" min="0" max="100000" step="5000"
+                            value="100000">
+                        <div class="flex justify-between text-muted mt-2" style="font-size: var(--font-size-xs);">
+                            <span>₩0</span>
+                            <span id="priceSliderLabel" style="color: var(--primary-color); font-weight: bold;" data-ko="제한 없음" data-en="No Limit">제한 없음</span>
+                            <span>₩100k+</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h3 class="filter-title" data-ko="장르" data-en="Genres">장르</h3>
+                    <div class="checkbox-group" style="max-height: 150px; overflow-y: auto; padding-right: 10px;">
+                        <label class="checkbox-label"><input type="checkbox" class="checkbox-input"> <span data-ko="액션" data-en="Action">액션</span> (Action)</label>
+                        <label class="checkbox-label"><input type="checkbox" class="checkbox-input"> <span data-ko="롤플레잉" data-en="RPG">롤플레잉</span> (RPG)</label>
+                        <label class="checkbox-label"><input type="checkbox" class="checkbox-input"> <span data-ko="오픈 월드" data-en="Open World">오픈 월드</span></label>
+                        <label class="checkbox-label"><input type="checkbox" class="checkbox-input"> <span data-ko="어드벤처" data-en="Adventure">어드벤처</span></label>
+                        <label class="checkbox-label"><input type="checkbox" class="checkbox-input"> <span data-ko="시뮬레이션" data-en="Simulation">시뮬레이션</span></label>
+                        <label class="checkbox-label"><input type="checkbox" class="checkbox-input"> <span data-ko="인디" data-en="Indie">인디</span></label>
+                    </div>
+                </div>
+
+                <button id="btnApplyFilters" class="btn btn-primary mt-4" style="width: 100%;" data-ko="필터 적용하기" data-en="Apply Filters">필터 적용하기</button>
+            </aside>
+
+            <!-- Main Content Area -->
+            <div style="min-width: 0;">
+                <!-- Header & Sort -->
+                <div class="flex items-center justify-between mb-6" style="flex-wrap: wrap; gap: 1rem;">
+                    <h2 style="margin: 0;">
+                        <span data-ko="검색 결과" data-en="Search Results">검색 결과</span>
+                    </h2>
+
+                    <div class="flex items-center gap-4">
+                        <select class="select" id="sortSelect">
+                            <option value="Recent" data-ko="최신순 (시간)" data-en="Most Recent">최신순 (시간)</option>
+                            <option value="Savings" data-ko="할인율 높은순" data-en="Highest Discount">할인율 높은순</option>
+                            <option value="Price" data-ko="가격 낮은순" data-en="Lowest Price">가격 낮은순</option>
+                            <option value="Deal Rating" data-ko="인기순 (추천)" data-en="Deal Rating">인기순 (추천)</option>
+                            <option value="Reviews" data-ko="판매량 순 (리뷰 수)" data-en="Sales (Review Count)">판매량 순 (리뷰 수)
+                            </option>
+                            <option value="All" data-ko="모든 게임 (할인 미포함)" data-en="All Games (Inc. Not on Sale)">모든 게임
+                                (할인 미포함)</option>
+                        </select>
+                        <div class="flex gap-2">
+                            <button id="btn-list-view" class="nav-icon-btn" title="목록 보기">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                            </button>
+                            <button id="btn-grid-view" class="nav-icon-btn active" title="격자 보기">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="3" width="7" height="7"></rect>
+                                    <rect x="14" y="14" width="7" height="7"></rect>
+                                    <rect x="3" y="14" width="7" height="7"></rect>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Grid -->
+                <div id="allGamesList" class="grid grid-4 grid-container mb-12">
+                    <!-- Cards will be injected by all-games.js -->
+                </div>
+
+                <!-- Pagination -->
+                <div id="paginationContainer" class="pagination">
+                    <button class="page-btn">&lt;</button>
+                    <button class="page-btn active">1</button>
+                    <button class="page-btn">2</button>
+                    <button class="page-btn">3</button>
+                    <button class="page-btn">...</button>
+                    <button class="page-btn">12</button>
+                    <button class="page-btn">&gt;</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container text-center">
+            <p data-ko="&copy; 2026 GameCatcher. 모든 권리 보유." data-en="&copy; 2026 GameCatcher. All rights reserved.">&copy; 2026 GameCatcher. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        const btnList = document.getElementById('btn-list-view');
+        const btnGrid = document.getElementById('btn-grid-view');
+        const gameContainer = document.getElementById('game-container');
+
+        btnList.addEventListener('click', () => {
+            btnList.classList.add('active');
+            btnGrid.classList.remove('active');
+            // Instead of gameContainer, we update currentViewClass so all-games.js can refer to it if needed
+            // But actually CSS handles container layout. We just change the container class.
+            document.getElementById('allGamesList').className = 'list-view-container mb-12';
+        });
+
+        btnGrid.addEventListener('click', () => {
+            btnGrid.classList.add('active');
+            btnList.classList.remove('active');
+            document.getElementById('allGamesList').className = 'grid grid-4 grid-container mb-12';
+        });
+
+        // Mobile Filter Toggle Script
+        const filterToggleBtn = document.getElementById('filterToggleBtn');
+        const filterCloseBtn = document.getElementById('filterCloseBtn');
+        const filterSidebar = document.getElementById('filterSidebar');
+
+        if (filterToggleBtn && filterCloseBtn && filterSidebar) {
+            filterToggleBtn.addEventListener('click', () => {
+                filterSidebar.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            });
+
+            filterCloseBtn.addEventListener('click', () => {
+                filterSidebar.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+
+            // Close on clicking outside
+            filterSidebar.addEventListener('click', (e) => {
+                if (e.target === filterSidebar) {
+                    filterSidebar.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            });
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleLogin()"></script>
+    <script src="translation.js"></script>
+    <script type="module" src="auth.js"></script>
+    <script type="module" src="all-games.js"></script>
+</body>
+
+</html>
