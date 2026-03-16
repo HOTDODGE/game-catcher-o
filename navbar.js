@@ -34,16 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close menu when clicking overlay
     overlay.addEventListener('click', () => {
-        if (navLinks.classList.contains('active')) {
+        if (navMenu.classList.contains('active')) {
             toggleMenu();
         }
     });
 
     // Close menu when clicking a link (mobile UX)
-    const links = navLinks.querySelectorAll('a');
+    const links = navMenu.querySelectorAll('a');
     links.forEach(link => {
         link.addEventListener('click', () => {
-            if (navLinks.classList.contains('active')) {
+            if (navMenu.classList.contains('active')) {
                 toggleMenu();
             }
         });
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && navLinks.classList.contains('active')) {
+        if (e.key === 'Escape' && navMenu.classList.contains('active')) {
             toggleMenu();
         }
     });

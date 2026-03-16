@@ -604,6 +604,10 @@ a:hover {
         order: 2; /* Ensure at far right */
     }
 
+    .navbar {
+        z-index: 1000; /* Higher than overlay (99) */
+    }
+
     .nav-menu {
         position: fixed;
         top: 0;
@@ -618,7 +622,7 @@ a:hover {
         gap: var(--spacing-8);
         transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
-        z-index: 100;
+        z-index: 1001;
         padding: 4rem 2rem;
         margin: 0;
     }
