@@ -150,12 +150,13 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
     const steamLang = lang === 'en' ? 'english' : 'korean';
     const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}`;
 
-    // Try multiple CORS proxies in sequence for reliability
+    // Priority: Use our own Netlify functions (Zero CORS issues, very fast)
+    // Fallback: Existing public proxies (for local dev without netlify-cli)
     const proxies = [
+        { name: 'netlify-func', url: `/.netlify/functions/steam-details?appids=${steamAppID}&l=${steamLang}`, type: 'json' },
         { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
         { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
         { name: 'allorigins-get', url: `https://api.allorigins.win/get?url=${encodeURIComponent(steamUrl)}`, type: 'wrapper' },
-        { name: 'corsproxy-io', url: `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`, type: 'json' },
     ];
 
     for (const proxy of proxies) {
@@ -321,10 +322,9 @@ export async function fetchSteamReviews(steamAppID, count = 20) {
 
     const baseUrl = `https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`;
     const proxies = [
+        { name: 'netlify-func', url: `/.netlify/functions/steam-reviews?appid=${steamAppID}&count=${count}`, type: 'json' },
         { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`, type: 'json' },
-        { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(baseUrl)}`, type: 'json' },
-        { name: 'allorigins-get', url: `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`, type: 'wrapper' },
-        { name: 'corsproxy-io', url: `https://corsproxy.io/?${encodeURIComponent(baseUrl)}`, type: 'json' }
+        { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(baseUrl)}`, type: 'json' }
     ];
 
     for (const proxy of proxies) {
