@@ -151,11 +151,11 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
     const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}&v=${Date.now()}`;
 
     // Try multiple CORS proxies in sequence for reliability
-    // Added 'x-cors-gratis' for proxy.cors.sh and changed order for better compatibility with public domains
+    // Re-ordered to prioritize allorigins as corsproxy.io is blocking GitHub Pages
     const proxies = [
-        { url: `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`, headers: {} },
         { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, headers: {} },
         { url: `https://proxy.cors.sh/${steamUrl}`, headers: { 'x-cors-gratis': 'true' } },
+        { url: `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`, headers: {} },
     ];
 
     for (const proxy of proxies) {
