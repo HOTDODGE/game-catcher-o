@@ -151,25 +151,29 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
     const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}&v=${Date.now()}`;
 
     // Try multiple CORS proxies in sequence for reliability
+    // Added 'x-cors-gratis' for proxy.cors.sh and changed order for better compatibility with public domains
     const proxies = [
-        `https://proxy.cors.sh/${steamUrl}`,
-        `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`,
+        { url: `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`, headers: {} },
+        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, headers: {} },
+        { url: `https://proxy.cors.sh/${steamUrl}`, headers: { 'x-cors-gratis': 'true' } },
     ];
 
-    for (const proxyUrl of proxies) {
+    for (const proxy of proxies) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // Reduced to 8s per proxy
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s per proxy
 
-            const response = await fetch(proxyUrl, { 
+            const response = await fetch(proxy.url, { 
                 signal: controller.signal,
-                headers: { 'x-requested-with': 'XMLHttpRequest' } // Help some proxies
+                headers: { 
+                    ...proxy.headers,
+                    'x-requested-with': 'XMLHttpRequest'
+                }
             });
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                console.warn(`Proxy ${proxyUrl} returned status ${response.status}`);
+                console.warn(`Proxy ${proxy.url} returned status ${response.status}`);
                 continue;
             }
 
@@ -178,18 +182,32 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
             // Steam API returns { "APPID": { success: true, data: { ... } } }
             const appKey = Object.keys(data)[0];
             if (appKey && data[appKey] && data[appKey].success) {
-                return data[appKey].data;
+                console.log(`Successfully fetched Steam data via proxy: ${proxy.url}`);
+                
+                let steamData = data[appKey].data;
+                // Force HTTPS for all Steam-hosted assets to avoid mixed content issues on GitHub Pages
+                const forceHttps = (obj) => {
+                    for (let key in obj) {
+                        if (typeof obj[key] === 'string' && obj[key].startsWith('http://')) {
+                            obj[key] = obj[key].replace('http://', 'https://');
+                        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                            forceHttps(obj[key]);
+                        }
+                    }
+                };
+                forceHttps(steamData);
+                
+                return steamData;
             }
-            // If success is false, maybe it's region locked or invalid ID
-            console.warn(`Steam API success false for app ${steamAppID} via ${proxyUrl}`);
-            return null;
+            console.warn(`Steam API success false for app ${steamAppID} via ${proxy.url}`);
+            continue; 
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.warn(`CORS proxy TIMEOUT (${proxyUrl})`);
+                console.warn(`CORS proxy TIMEOUT (${proxy.url})`);
             } else {
-                console.warn(`CORS proxy Error (${proxyUrl}):`, error.message);
+                console.warn(`CORS proxy Error (${proxy.url}):`, error.message);
             }
-            continue; // Try next proxy
+            continue; 
         }
     }
 
@@ -292,28 +310,46 @@ export async function fetchSteamReviews(steamAppID, count = 20) {
 
     // Use CORS proxies to reach Steam API
     const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(`https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`)}`,
         `https://api.allorigins.win/get?url=${encodeURIComponent(`https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`)}`,
-        `https://corsproxy.io/?${encodeURIComponent(`https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`)}`
+        `https://proxy.cors.sh/https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`
     ];
 
     for (const proxyUrl of proxies) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const response = await fetch(proxyUrl, { signal: controller.signal });
+            const fetchOptions = { signal: controller.signal };
+            if (proxyUrl.includes('proxy.cors.sh')) {
+                fetchOptions.headers = { 'x-cors-gratis': 'true' };
+            }
+
+            const response = await fetch(proxyUrl, fetchOptions);
             clearTimeout(timeoutId);
 
             if (!response.ok) continue;
 
             const rawData = await response.json();
-            // Data handling for different proxies
             const data = rawData.contents ? JSON.parse(rawData.contents) : rawData;
 
             if (data && data.success && data.reviews) {
+                console.log(`Successfully fetched Steam reviews via proxy: ${proxyUrl}`);
+                
+                // Force HTTPS for any URLs in reviews if present
+                const forceHttps = (obj) => {
+                    for (let key in obj) {
+                        if (typeof obj[key] === 'string' && obj[key].startsWith('http://')) {
+                            obj[key] = obj[key].replace('http://', 'https://');
+                        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                            forceHttps(obj[key]);
+                        }
+                    }
+                };
+                forceHttps(data.reviews);
+                
                 return data.reviews;
             }
-            return null;
         } catch (error) {
             if (error.name === 'AbortError') {
                 console.warn(`Steam reviews TIMEOUT (${proxyUrl})`);
