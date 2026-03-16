@@ -529,6 +529,11 @@ async function initGameDetail() {
                     });
                 }
             }
+        } else {
+            // No Steam AppID available - Show fallbacks and cleanup skeletons
+            showFallbackThumbnail(info.thumb);
+            showFallbackDescription();
+            document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
         }
     }
 }
