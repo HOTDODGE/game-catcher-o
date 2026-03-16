@@ -148,11 +148,12 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
 
     // Map our internal lang ('ko', 'en') to Steam API's expected 'l' parameter
     const steamLang = lang === 'en' ? 'english' : 'korean';
-    const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}&v=${Date.now()}`;
+    const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}`;
 
     // Try multiple CORS proxies in sequence for reliability
     const proxies = [
         { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
+        { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
         { name: 'allorigins-get', url: `https://api.allorigins.win/get?url=${encodeURIComponent(steamUrl)}`, type: 'wrapper' },
         { name: 'corsproxy-io', url: `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`, type: 'json' },
     ];
@@ -318,30 +319,40 @@ export function isValidID(id) {
 export async function fetchSteamReviews(steamAppID, count = 20) {
     if (!steamAppID) return null;
 
-    // Use CORS proxies to reach Steam API
+    const baseUrl = `https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`;
     const proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(`https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`)}`,
-        `https://api.allorigins.win/get?url=${encodeURIComponent(`https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`)}`,
-        `https://proxy.cors.sh/https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`
+        { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`, type: 'json' },
+        { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(baseUrl)}`, type: 'json' },
+        { name: 'allorigins-get', url: `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`, type: 'wrapper' },
+        { name: 'corsproxy-io', url: `https://corsproxy.io/?${encodeURIComponent(baseUrl)}`, type: 'json' }
     ];
 
-    for (const proxyUrl of proxies) {
+    for (const proxy of proxies) {
         try {
+            console.log(`Attempting fetch reviews via ${proxy.name}...`);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            const fetchOptions = { signal: controller.signal };
-            if (proxyUrl.includes('proxy.cors.sh')) {
-                fetchOptions.headers = { 'x-cors-gratis': 'true' };
-            }
-
-            const response = await fetch(proxyUrl, fetchOptions);
+            const response = await fetch(proxy.url, { 
+                signal: controller.signal,
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             clearTimeout(timeoutId);
 
             if (!response.ok) continue;
 
-            const rawData = await response.json();
-            const data = rawData.contents ? JSON.parse(rawData.contents) : rawData;
+            const textData = await response.text();
+            let data;
+            try {
+                if (proxy.type === 'wrapper') {
+                    const wrapper = JSON.parse(textData);
+                    data = JSON.parse(wrapper.contents);
+                } else {
+                    data = JSON.parse(textData);
+                }
+            } catch (e) {
+                continue;
+            }
 
             if (data && data.success && data.reviews) {
                 console.log(`Successfully fetched Steam reviews via proxy: ${proxyUrl}`);

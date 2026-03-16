@@ -446,7 +446,7 @@ async function initGameDetail() {
                             console.warn("Steam EN fetch failed:", e);
                             return null;
                         }),
-                        fetchSteamAppDetails(info.steamAppID, 'korean').catch(e => {
+                        fetchSteamAppDetails(info.steamAppID, 'ko').catch(e => {
                             console.warn("Steam KO fetch failed:", e);
                             return null;
                         })
@@ -476,7 +476,8 @@ async function initGameDetail() {
                         initMediaCarousel(primaryData);
                     } else {
                         console.warn("No Steam data found for appID:", info.steamAppID);
-                        showFallbackThumbnail(info.thumb);
+                        // 🔥 Smart Fallback: Even if API fails, try to show standard Steam CDN assets
+                        showFallbackMedia(info.steamAppID, info.thumb);
                         showFallbackDescription();
                     }
 
@@ -616,14 +617,41 @@ function showFallbackThumbnail(thumbUrl) {
     const galleryContainer = document.querySelector('.media-gallery');
     if (!galleryContainer || !thumbUrl) return;
 
-    // Remove skeleton before revealing content
     galleryContainer.classList.remove('skeleton');
     
     galleryContainer.innerHTML = `
-        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative;">
-            <img src="${thumbUrl}" alt="Game Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
+        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; background: #000;">
+            <img src="${thumbUrl}" alt="Game Thumbnail" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
     `;
+}
+
+/** 
+ * 🔥 Smart Fallback: Attempts to load standard Steam CDN assets when the API fails.
+ */
+function showFallbackMedia(steamAppID, thumbUrl) {
+    if (!steamAppID) {
+        showFallbackThumbnail(thumbUrl);
+        return;
+    }
+
+    // Standard static Steam image paths - often accessible even if API is blocked
+    const fallbackAssets = [
+        { type: 'image', src: `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppID}/header.jpg` },
+        { type: 'image', src: `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppID}/library_hero.jpg` },
+        { type: 'image', src: `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppID}/library_600x900.jpg` }
+    ];
+
+    // If we have a thumb from CheapShark, put it first if it's different
+    if (thumbUrl && !thumbUrl.includes(steamAppID)) {
+        fallbackAssets.unshift({ type: 'image', src: thumbUrl });
+    }
+
+    initMediaCarousel({
+        steam_appid: steamAppID,
+        screenshots: fallbackAssets.map(a => ({ path_full: a.src })),
+        movies: []
+    });
 }
 
 /**
@@ -1019,18 +1047,30 @@ async function analyzeRealReviews(steamAppID) {
         }
     } catch (err) {
         console.warn('AI Review analysis failed:', err);
-        // Fallback: Remove skeletons and show a basic message if analysis fails
+        // Fallback: Remove skeletons and show a more helpful message
         const aiOneLiner = document.getElementById('aiOneLiner');
         const aiReviewSource = document.getElementById('aiReviewSource');
+        const aiProsCons = document.getElementById('aiProsCons');
+
         if (aiOneLiner) {
             aiOneLiner.classList.remove('skeleton');
-            aiOneLiner.textContent = `"유저 리뷰 분석 결과를 가져올 수 없습니다. 평점 정보를 참고해 주세요."`;
+            const msgKo = `"현재 Steam 통신 지연으로 실시간 리뷰 분석이 어렵습니다. 아래의 유저 평점(긍정 응답률)을 참고해 주세요."`;
+            const msgEn = `"Real-time review analysis is currently unavailable due to Steam communication delays. Please refer to the user rating below."`;
+            aiOneLiner.textContent = window.currentLang === 'en' ? msgEn : msgKo;
+            aiOneLiner.setAttribute("data-ko", msgKo);
+            aiOneLiner.setAttribute("data-en", msgEn);
         }
+        
         if (aiReviewSource) aiReviewSource.classList.remove('skeleton');
+        
+        // Ensure rating text/bar are visible as they don't depend on analysis
         const aiRateText = document.getElementById('aiPositiveRateText');
         const aiRateBarParent = document.querySelector('.ai-recommendation .progress-bg');
         if (aiRateText) aiRateText.classList.remove('skeleton');
         if (aiRateBarParent) aiRateBarParent.classList.remove('skeleton');
+        
+        // Hide pros/cons instead of showing empty skeleton
+        if (aiProsCons) aiProsCons.style.display = 'none';
     }
 }
 
