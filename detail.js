@@ -203,7 +203,7 @@ async function initGameDetail() {
     const [storeData, gameData, dealData] = await Promise.all(fetchPromises);
     currentGameData = gameData; // Save for wishlist
     
-    const info = gameData.info;
+    let info = gameData.info;
     const cheapest = gameData.cheapestPriceEver;
     const deals = gameData.deals;
 
@@ -301,7 +301,8 @@ async function initGameDetail() {
         
         // --- Populate Extended Deal Data (Metacritic, Steam, AI, Description) ---
         if (dealData && dealData.gameInfo) {
-            const info = dealData.gameInfo;
+            // If dealData provides more comprehensive info, use it for these sections
+            info = dealData.gameInfo;
             
             // Meta Pills (Release Date & Publisher)
             const pillsContainer = document.getElementById('gameMetaPills');
@@ -360,9 +361,6 @@ async function initGameDetail() {
                 }
             }
 
-            // (Description logic has been moved to initMediaCarousel to use real Steam data)
-
-
             // Update AI Review Source Count
             const aiReviewSource = document.getElementById('aiReviewSource');
             if (aiReviewSource && info.steamRatingCount) {
@@ -401,51 +399,43 @@ async function initGameDetail() {
                 const aiReviewSection = document.getElementById('aiReviewSection');
                 if (aiReviewSection) aiReviewSection.style.display = 'none';
             }
-                    if (top < 0) top = e.clientY - rect.top + 20;
+        }
 
-                    tooltip.style.left = `${left}px`;
-                    tooltip.style.top = `${top}px`;
-                });
+        // --- Render Price History Chart (Moved Outside to be more resilient) ---
+        renderPriceHistoryChart(gameData, dealData);
 
-                hoverOverlay.addEventListener('mouseleave', () => {
-                    tooltip.style.display = 'none';
-                });
+        // Hide System Requirements as CheapShark doesn't provide them
+        const sysReq = document.getElementById('sysReqSection');
+        if (sysReq) sysReq.style.display = 'none';
+
+        // Remove all skeleton classes since basic data is now loaded
+        // NOTE: exclude #gameDescriptionSection and .media-gallery — they stay until Steam data/translation finishes
+        document.querySelectorAll('.skeleton').forEach(el => {
+            if (!el.closest('#gameDescriptionSection') && !el.classList.contains('media-gallery') && !el.closest('.ai-review-box')) {
+                el.classList.remove('skeleton');
             }
+        });
 
-            // Hide System Requirements as CheapShark doesn't provide them
-            const sysReq = document.getElementById('sysReqSection');
-            if (sysReq) sysReq.style.display = 'none';
+        // Apply current language to all newly rendered elements
+        if (typeof applyTranslation === 'function') applyTranslation();
 
-            // Remove all skeleton classes since basic data is now loaded
-            // NOTE: exclude #gameDescriptionSection and .media-gallery — they stay until Steam data/translation finishes
-            document.querySelectorAll('.skeleton').forEach(el => {
-                if (!el.closest('#gameDescriptionSection') && !el.classList.contains('media-gallery')) {
-                    el.classList.remove('skeleton');
-                }
-            });
+        // --- Populate Media Carousel & Description ---
+        if (info.steamAppID) {
+            try {
+                _cachedSteamAppID = info.steamAppID;
+                const initialLang = window.currentLang || 'ko';
 
-            // Apply current language to all newly rendered elements
-            if (typeof applyTranslation === 'function') applyTranslation();
-
-            // --- Populate Media Carousel & Description ---
-            if (info.steamAppID) {
-                try {
-                    _cachedSteamAppID = info.steamAppID;
-                    const initialLang = window.currentLang || 'ko';
-
-                    // Check Cache first
-                    const cacheKey = `${info.steamAppID}_${initialLang}`;
-                    const cachedData = getFromCache(cacheKey);
-                    if (cachedData) {
-                        console.log("Using cached Steam data.");
-                        _cachedAboutEn = cachedData.aboutEn;
-                        _cachedDescEn = cachedData.descEn;
-                        _cachedAboutKo = cachedData.aboutKo;
-                        _cachedDescKo = cachedData.descKo;
-                        initMediaCarousel(cachedData.primary);
-                        return;
-                    }
-
+                // Check Cache first
+                const cacheKey = `${info.steamAppID}_${initialLang}`;
+                const cachedData = getFromCache(cacheKey);
+                if (cachedData) {
+                    console.log("Using cached Steam data.");
+                    _cachedAboutEn = cachedData.aboutEn;
+                    _cachedDescEn = cachedData.descEn;
+                    _cachedAboutKo = cachedData.aboutKo;
+                    _cachedDescKo = cachedData.descKo;
+                    initMediaCarousel(cachedData.primary);
+                } else {
                     // Fetch both language versions with individual error handling to prevent blocking
                     const [steamDataEn, steamDataKo] = await Promise.all([
                         fetchSteamAppDetails(info.steamAppID, 'en').catch(e => {
@@ -518,26 +508,12 @@ async function initGameDetail() {
                             primary: primaryData
                         });
                     }
-                } finally {
-                    // Final cleanup: ALWAYS remove all remaining skeletons
-                    document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
-                    
-                    // Force translation on newly injected DOM elements if current lang is English
-                    if (window.currentLang === 'en') {
-                        document.querySelectorAll('[data-en][data-ko]').forEach(el => {
-                            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                                if (el.hasAttribute('placeholder')) el.placeholder = el.getAttribute('data-placeholder-en') || el.getAttribute('data-en');
-                            } else {
-                                el.innerHTML = el.getAttribute('data-en');
-                            }
-                        });
-                    }
                 }
-            } else {
-                // No Steam ID — show fallback
-                showFallbackThumbnail(info.thumb);
-                showFallbackDescription();
+            } finally {
+                // Final cleanup: ALWAYS remove all remaining skeletons
                 document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
+                
+                // Force translation on newly injected DOM elements if current lang is English
                 if (window.currentLang === 'en') {
                     document.querySelectorAll('[data-en][data-ko]').forEach(el => {
                         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
@@ -1123,4 +1099,144 @@ function initPriceAlertModal(gameID) {
             btnSubmit.textContent = originalText;
         }
     });
+}
+
+/**
+ * Renders the Price History Chart based on available game and deal data.
+ * Independent of whether specific dealInfo loaded, so chart always shows something.
+ */
+function renderPriceHistoryChart(gameData, dealData) {
+    const chartLabelHigh = document.getElementById('chartLabelHigh');
+    const chartLabelMid = document.getElementById('chartLabelMid');
+    const chartLabelLow = document.getElementById('chartLabelLow');
+    const chartLine = document.querySelector('.chart-line');
+    const hoverOverlay = document.getElementById('chartHoverOverlay');
+    const tooltip = document.getElementById('chartTooltip');
+
+    if (!chartLine || !gameData) return;
+
+    // 1. Calculate Prices (Retail, Current, Historical Low)
+    // Priority: dealData > gameData.deals > defaults
+    let retail = 59.99;
+    let current = 59.99;
+    let lowestHistory = 59.99;
+
+    // Get Retail & Current
+    if (dealData && dealData.gameInfo && dealData.gameInfo.retailPrice) {
+        retail = parseFloat(dealData.gameInfo.retailPrice);
+        current = parseFloat(dealData.gameInfo.salePrice || retail);
+    } else if (gameData.deals && gameData.deals.length > 0) {
+        // Find highest retail as a proxy
+        retail = Math.max(...gameData.deals.map(d => parseFloat(d.retailPrice || 0)));
+        // Find lowest current
+        const lowestDeal = gameData.deals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, gameData.deals[0]);
+        current = parseFloat(lowestDeal.price);
+    }
+
+    // Get Historical Low
+    if (dealData && dealData.cheapestPrice && dealData.cheapestPrice.price) {
+        lowestHistory = parseFloat(dealData.cheapestPrice.price);
+    } else if (gameData.cheapestPriceEver && gameData.cheapestPriceEver.price) {
+        lowestHistory = parseFloat(gameData.cheapestPriceEver.price);
+    } else {
+        lowestHistory = current; // Fallback
+    }
+
+    // Ensure values make sense
+    if (retail < current) retail = current;
+    if (lowestHistory > current) lowestHistory = current;
+
+    // 2. Update Labels
+    if (chartLabelHigh && chartLabelMid && chartLabelLow) {
+        const mid = (retail + lowestHistory) / 2;
+        chartLabelHigh.textContent = `$${retail.toFixed(2)}`;
+        chartLabelHigh.style.top = '50px';
+        chartLabelMid.textContent = `$${mid.toFixed(2)}`;
+        chartLabelMid.style.top = '125px';
+        chartLabelLow.textContent = `$${lowestHistory.toFixed(2)} (${window.currentLang === 'en' ? 'Low' : '최저가'})`;
+        chartLabelLow.style.top = '200px';
+    }
+
+    // 3. Draw SVG Line
+    const priceToY = (p) => {
+        const range = retail - lowestHistory || 1;
+        const percent = (retail - p) / range;
+        return 50 + (percent * 150); // Map to y=50 to y=200
+    };
+
+    const points = [
+        { x: 0, p: retail },
+        { x: 150, p: retail },
+        { x: 300, p: (retail + lowestHistory) / 1.5 },
+        { x: 450, p: retail * 0.9 },
+        { x: 600, p: lowestHistory },
+        { x: 750, p: (retail + lowestHistory) / 2 },
+        { x: 900, p: current },
+        { x: 1000, p: current }
+    ];
+
+    let d = `M${points[0].x},${priceToY(points[0].p)}`;
+    for (let i = 1; i < points.length; i++) {
+        d += ` L${points[i].x},${priceToY(points[i].p)}`;
+    }
+
+    const svgContent = `
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 250' preserveAspectRatio='none'>
+            <path d='${d}' fill='none' stroke='#6366f1' stroke-width='4' stroke-linejoin='round'/>
+            <path d='${d} L1000,250 L0,250 Z' fill='rgba(99,102,241,0.1)'/>
+        </svg>
+    `.trim().replace(/\n/g, '').replace(/"/g, "'");
+
+    chartLine.style.backgroundImage = `url("data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgContent)}")`;
+
+    // 4. Interaction (Tooltip)
+    if (hoverOverlay && tooltip) {
+        hoverOverlay.addEventListener('mousemove', (e) => {
+            const rect = hoverOverlay.getBoundingClientRect();
+            const xPercent = (e.clientX - rect.left) / rect.width;
+            const svgX = xPercent * 1000;
+            
+            let nearest = points[0];
+            let minDiff = Math.abs(points[0].x - svgX);
+            points.forEach(p => {
+                const diff = Math.abs(p.x - svgX);
+                if (diff < minDiff) { minDiff = diff; nearest = p; }
+            });
+
+            // Update dates
+            const now = new Date();
+            const months = [];
+            for (let i = 4; i >= 0; i--) {
+                if (i === 0) {
+                    months.push(window.currentLang === 'en' ? 'Now' : '현재');
+                } else {
+                    const d = new Date(now.getFullYear(), now.getMonth() - (i * 3), 1);
+                    const yearShort = d.getFullYear().toString().slice(-2);
+                    const month = d.getMonth() + 1;
+                    months.push(window.currentLang === 'en' ? `${month}/${yearShort}` : `${yearShort}년 ${month}월`);
+                }
+            }
+            months.forEach((m, i) => {
+                const el = document.getElementById(`chartDate${i + 1}`);
+                if (el) el.textContent = m;
+            });
+
+            const dateStr = months[Math.min(Math.floor(xPercent * months.length), months.length - 1)];
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = `<span class="date">${dateStr}</span><span class="price">$${nearest.p.toFixed(2)}</span>`;
+            
+            const tr = tooltip.getBoundingClientRect();
+            let l = e.clientX - rect.left + 15;
+            let t = e.clientY - rect.top - 40;
+            if (l + tr.width > rect.width) l = e.clientX - rect.left - tr.width - 15;
+            if (t < 0) t = e.clientY - rect.top + 20;
+
+            tooltip.style.left = `${l}px`;
+            tooltip.style.top = `${t}px`;
+        });
+
+        hoverOverlay.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+    }
 }
