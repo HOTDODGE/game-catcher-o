@@ -537,6 +537,13 @@ a:hover {
 .logo-icon {
   color: var(--primary-color);
 }
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  flex: 1;
+  justify-content: flex-end;
+}
 .nav-links {
   display: flex;
   gap: var(--spacing-6);
@@ -553,15 +560,129 @@ a:hover {
 }
 
 @media (max-width: 480px) {
-  .nav-links {
-    display: none; /* Hide full menu on very small screens, or could be scrollable */
-  }
-  .navbar .btn-secondary {
-    display: none; /* Hide login button on tiny screens if it still overflows */
-  }
   .navbar .logo {
     font-size: var(--font-size-lg);
   }
+}
+
+/* Hamburger Menu Toggle Button */
+.menu-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 16px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 101;
+}
+
+.menu-toggle span {
+    width: 100%;
+    height: 2px;
+    background-color: var(--text-muted);
+    border-radius: var(--radius-full);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    transform-origin: center;
+}
+
+@media (max-width: 768px) {
+    .navbar .container {
+        flex-wrap: nowrap; /* Keep logo and toggle on same line */
+        justify-content: space-between;
+    }
+
+    .logo {
+        margin-right: auto;
+    }
+
+    .menu-toggle {
+        display: flex;
+        order: 2; /* Ensure at far right */
+    }
+
+    .nav-menu {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 280px;
+        height: 100vh;
+        background-color: var(--surface-color);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between; /* Space links and auth */
+        gap: var(--spacing-8);
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        padding: 4rem 2rem;
+        margin: 0;
+    }
+
+    .nav-menu.active {
+        right: 0;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        padding: 0;
+    }
+
+    .nav-links li {
+        width: 100%;
+        text-align: center;
+    }
+
+    .nav-links a {
+        font-size: var(--font-size-lg) !important;
+        display: block;
+        padding: var(--spacing-4);
+    }
+
+    .navbar .nav-auth {
+        width: 100%;
+        justify-content: center;
+        padding-top: var(--spacing-8);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex !important; /* Force visible in sidebar */
+        order: 3;
+    }
+
+    /* Animate Hamburger to X */
+    .menu-toggle.active span:nth-child(1) {
+        transform: translateY(7px) rotate(45deg);
+        background-color: var(--text-main);
+    }
+    .menu-toggle.active span:nth-child(2) {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    .menu-toggle.active span:nth-child(3) {
+        transform: translateY(-7px) rotate(-45deg);
+        background-color: var(--text-main);
+    }
+
+    /* Dim background when menu open */
+    .menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 99;
+        display: none;
+    }
+    .menu-overlay.active {
+        display: block;
+    }
 }
 .nav-links a {
   color: var(--text-muted);

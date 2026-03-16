@@ -966,10 +966,25 @@ async function analyzeRealReviews(steamAppID) {
     
     try {
         const reviews = await fetchSteamReviews(steamAppID, 30);
-        if (!reviews || reviews.length === 0) return;
-
+        
         const aiOneLiner = document.getElementById('aiOneLiner');
+        const aiReviewSource = document.getElementById('aiReviewSource');
         const aiProsCons = document.getElementById('aiProsCons');
+
+        if (!reviews || reviews.length === 0) {
+            console.warn('Real-time review analyze skipped: No data received.');
+            const msgKo = `"AI 리뷰 요약을 표시할 수 없습니다."`;
+            const msgEn = `"AI review summary cannot be displayed."`;
+            if (aiOneLiner) {
+                aiOneLiner.textContent = window.currentLang === 'en' ? msgEn : msgKo;
+                aiOneLiner.classList.remove('skeleton');
+                aiOneLiner.setAttribute("data-ko", msgKo);
+                aiOneLiner.setAttribute("data-en", msgEn);
+            }
+            if (aiReviewSource) aiReviewSource.classList.remove('skeleton');
+            if (aiProsCons) aiProsCons.style.display = 'none';
+            return;
+        }
         
         // Basic Keyword Analysis (Client-side simulation of AI)
         const keywords = {
@@ -1052,45 +1067,50 @@ async function analyzeRealReviews(steamAppID) {
 
                 aiOneLiner.textContent = currentLang === 'en' ? summaryEn : summaryKo;
                 aiOneLiner.classList.remove('skeleton');
-                
-                // Set data attributes for translation system
                 aiOneLiner.setAttribute("data-ko", summaryKo);
                 aiOneLiner.setAttribute("data-en", summaryEn);
             }
-            
-            // Remove skeletons once real data is ready
-            if (aiReviewSource) aiReviewSource.classList.remove('skeleton');
-            if (aiOneLiner) aiOneLiner.classList.remove('skeleton');
-            const aiRateText = document.getElementById('aiPositiveRateText');
-            const aiRateBarParent = document.querySelector('.ai-recommendation .progress-bg');
-            if (aiRateText) aiRateText.classList.remove('skeleton');
-            if (aiRateBarParent) aiRateBarParent.classList.remove('skeleton');
+        } else {
+            // Fallback: No keywords matched but reviews exist
+            const aiOneLiner = document.getElementById('aiOneLiner');
+            const msgKo = `"AI 리뷰 요약을 표시할 수 없습니다."`;
+            const msgEn = `"AI review summary cannot be displayed."`;
+            if (aiOneLiner) {
+                aiOneLiner.textContent = window.currentLang === 'en' ? msgEn : msgKo;
+                aiOneLiner.classList.remove('skeleton');
+                aiOneLiner.setAttribute("data-ko", msgKo);
+                aiOneLiner.setAttribute("data-en", msgEn);
+            }
+            if (aiProsCons) aiProsCons.style.display = 'none';
         }
+
+        // Final cleanup for successful fetch cases
+        if (aiReviewSource) aiReviewSource.classList.remove('skeleton');
+        const aiRateText = document.getElementById('aiPositiveRateText');
+        const aiRateBarParent = document.querySelector('.ai-recommendation .progress-bg');
+        if (aiRateText) aiRateText.classList.remove('skeleton');
+        if (aiRateBarParent) aiRateBarParent.classList.remove('skeleton');
+
     } catch (err) {
         console.warn('AI Review analysis failed:', err);
-        // Fallback: Remove skeletons and show a more helpful message
         const aiOneLiner = document.getElementById('aiOneLiner');
         const aiReviewSource = document.getElementById('aiReviewSource');
         const aiProsCons = document.getElementById('aiProsCons');
 
         if (aiOneLiner) {
             aiOneLiner.classList.remove('skeleton');
-            const msgKo = `"현재 Steam 통신 지연으로 실시간 리뷰 분석이 어렵습니다. 아래의 유저 평점(긍정 응답률)을 참고해 주세요."`;
-            const msgEn = `"Real-time review analysis is currently unavailable due to Steam communication delays. Please refer to the user rating below."`;
+            const msgKo = `"AI 리뷰 요약을 표시할 수 없습니다."`;
+            const msgEn = `"AI review summary cannot be displayed."`;
             aiOneLiner.textContent = window.currentLang === 'en' ? msgEn : msgKo;
             aiOneLiner.setAttribute("data-ko", msgKo);
             aiOneLiner.setAttribute("data-en", msgEn);
         }
         
         if (aiReviewSource) aiReviewSource.classList.remove('skeleton');
-        
-        // Ensure rating text/bar are visible as they don't depend on analysis
         const aiRateText = document.getElementById('aiPositiveRateText');
         const aiRateBarParent = document.querySelector('.ai-recommendation .progress-bg');
         if (aiRateText) aiRateText.classList.remove('skeleton');
         if (aiRateBarParent) aiRateBarParent.classList.remove('skeleton');
-        
-        // Hide pros/cons instead of showing empty skeleton
         if (aiProsCons) aiProsCons.style.display = 'none';
     }
 }
@@ -1221,22 +1241,26 @@ function renderPriceHistoryChart(gameData, dealData) {
     if (retail < current) retail = current;
     if (lowestHistory > current) lowestHistory = current;
 
-    // 2. Update Labels
+    // 2. Update Labels based on container height
+    const containerHeight = chartLine.parentElement.clientHeight || 250;
+    const padding = 40; // Balanced padding
+    const chartHeight = containerHeight - (padding * 2);
+
     if (chartLabelHigh && chartLabelMid && chartLabelLow) {
         const mid = (retail + lowestHistory) / 2;
         chartLabelHigh.textContent = `$${retail.toFixed(2)}`;
-        chartLabelHigh.style.top = '50px';
+        chartLabelHigh.style.top = `${padding}px`;
         chartLabelMid.textContent = `$${mid.toFixed(2)}`;
-        chartLabelMid.style.top = '125px';
+        chartLabelMid.style.top = `${padding + chartHeight / 2}px`;
         chartLabelLow.textContent = `$${lowestHistory.toFixed(2)} (${window.currentLang === 'en' ? 'Low' : '최저가'})`;
-        chartLabelLow.style.top = '200px';
+        chartLabelLow.style.top = `${padding + chartHeight}px`;
     }
 
     // 3. Draw SVG Line
     const priceToY = (p) => {
         const range = retail - lowestHistory || 1;
         const percent = (retail - p) / range;
-        return 50 + (percent * 150); // Map to y=50 to y=200
+        return padding + (percent * chartHeight);
     };
 
     const points = [
@@ -1256,9 +1280,9 @@ function renderPriceHistoryChart(gameData, dealData) {
     }
 
     const svgContent = `
-        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 250' preserveAspectRatio='none'>
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 ${containerHeight}' preserveAspectRatio='none'>
             <path d='${d}' fill='none' stroke='#6366f1' stroke-width='4' stroke-linejoin='round'/>
-            <path d='${d} L1000,250 L0,250 Z' fill='rgba(99,102,241,0.1)'/>
+            <path d='${d} L1000,${containerHeight} L0,${containerHeight} Z' fill='rgba(99,102,241,0.1)'/>
         </svg>
     `.trim().replace(/\n/g, '').replace(/"/g, "'");
 

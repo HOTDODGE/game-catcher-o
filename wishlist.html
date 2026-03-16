@@ -40,20 +40,27 @@
             <div class="logo">
                 <span class="logo-icon">🎮</span> <a href="index.html" style="color: inherit;" data-ko="GameCatcher" data-en="GameCatcher">GameCatcher</a>
             </div>
-            <ul class="nav-links">
-                <li><a href="index.html" data-ko="홈" data-en="Home">홈</a></li>
-                <li><a href="all-games.html" data-ko="모든 게임 (검색)" data-en="All Games (Search)">모든 게임 (검색)</a></li>
-                <li><a href="deep-discounts.html" data-ko="파격 할인" data-en="Deep Discounts">파격 할인</a></li>
-                <li><a href="wishlist.html" class="active" data-ko="위시리스트" data-en="Wishlist">위시리스트</a></li>
-            </ul>
-            <div class="flex" style="align-items: center; gap: var(--spacing-3);">
+            <button class="menu-toggle" aria-label="Toggle Navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="nav-menu">
+                <ul class="nav-links">
+                    <li><a href="index.html" data-ko="홈" data-en="Home">홈</a></li>
+                    <li><a href="all-games.html" data-ko="모든 게임 (검색)" data-en="All Games (Search)">모든 게임 (검색)</a></li>
+                    <li><a href="deep-discounts.html" data-ko="파격 할인" data-en="Deep Discounts">파격 할인</a></li>
+                    <li><a href="wishlist.html" class="active" data-ko="위시리스트" data-en="Wishlist">위시리스트</a></li>
+                </ul>
+                <div class="flex nav-auth" style="align-items: center; gap: var(--spacing-3);">
                     <span style="font-size: 0.6rem; font-weight: bold;">KO</span>
-                </button>
-                <div id="g_id_signin"></div>
-                <div id="userProfile" class="user-profile-nav" style="display: none;">
-                    <img id="userAvatar" src="" alt="Profile" class="avatar-sm">
-                    <span id="userName" class="user-name"></span>
-                    <button id="logoutBtn" class="btn btn-ghost btn-sm" data-ko="로그아웃" data-en="Logout">로그아웃</button>
+                    </button>
+                    <div id="g_id_signin"></div>
+                    <div id="userProfile" class="user-profile-nav" style="display: none;">
+                        <img id="userAvatar" src="" alt="Profile" class="avatar-sm">
+                        <span id="userName" class="user-name"></span>
+                        <button id="logoutBtn" class="btn btn-ghost btn-sm" data-ko="로그아웃" data-en="Logout">로그아웃</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -88,6 +95,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleLogin()"></script>
     <script src="translation.js"></script>
+    <script src="navbar.js"></script>
     <script type="module" src="auth.js"></script>
     <script type="module" src="wishlist.js"></script>
 </body>

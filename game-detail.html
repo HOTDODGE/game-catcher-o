@@ -570,6 +570,22 @@
             
             .chart-container {
                 height: 180px; /* Smaller chart for mobile */
+                margin-bottom: 50px; /* Space for labels below (20+15+20) */
+                margin-top: var(--spacing-6);
+            }
+            .chart-container div[style*="bottom:-25px"] {
+                bottom: -20px !important; /* Gap above labels = 20px */
+                font-size: 10px !important;
+            }
+            .chart-container #chartLabelLow {
+                font-size: 10px !important;
+            }
+            
+            .stat-highlight-box {
+                margin-top: 20px !important; /* Gap below labels = 20px */
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: var(--spacing-4);
             }
             
             .media-gallery {
@@ -579,6 +595,36 @@
             
             .detail-header {
                 padding: var(--spacing-4) 0;
+            }
+
+            /* Responsive tweaks for info boxes and stats */
+            .stat-highlight-box {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: var(--spacing-4);
+            }
+            .stat-highlight-box .stat-date-box {
+                text-align: left !important;
+                border-top: 1px solid var(--border-color);
+                padding-top: var(--spacing-3);
+                width: 100%;
+            }
+
+            .ai-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: var(--spacing-2);
+            }
+            .ai-header #aiReviewSource {
+                font-size: 0.75rem;
+            }
+
+            .ai-recommendation .flex.justify-between {
+                flex-direction: column;
+                gap: var(--spacing-1);
+            }
+            .ai-recommendation #aiPositiveRateText {
+                font-size: 1rem;
             }
         }
 
@@ -713,26 +759,33 @@
             <div class="logo">
                 <span class="logo-icon">🎮</span> <a href="index.html" style="color: inherit;" data-ko="GameCatcher" data-en="GameCatcher">GameCatcher</a>
             </div>
-            <ul class="nav-links">
-                <li><a href="index.html" data-ko="홈" data-en="Home">홈</a></li>
-                <li><a href="all-games.html" data-ko="모든 게임 (검색)" data-en="All Games (Search)">모든 게임 (검색)</a></li>
-                <li><a href="#" data-ko="파격 할인" data-en="Deep Discounts">파격 할인</a></li>
-                <li><a href="#" data-ko="위시리스트" data-en="Wishlist">위시리스트</a></li>
-            </ul>
-            <div class="flex" style="align-items: center; gap: var(--spacing-3);">
-                <button class="nav-icon-btn" title="언어 변경: English / 한국어" onclick="toggleLanguage()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="2" y1="12" x2="22" y2="12"></line>
-                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                    </svg>
-                    <span style="font-size: 0.6rem; font-weight: bold; line-height: 1;">KO</span>
-                </button>
-                <div id="g_id_signin"></div>
-                <div id="userProfile" class="user-profile-nav" style="display: none;">
-                    <img id="userAvatar" src="" alt="Profile" class="avatar-sm">
-                    <span id="userName" class="user-name"></span>
-                    <button id="logoutBtn" class="btn btn-ghost btn-sm" data-ko="로그아웃" data-en="Logout">로그아웃</button>
+            <button class="menu-toggle" aria-label="Toggle Navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="nav-menu">
+                <ul class="nav-links">
+                    <li><a href="index.html" data-ko="홈" data-en="Home">홈</a></li>
+                    <li><a href="all-games.html" data-ko="모든 게임 (검색)" data-en="All Games (Search)">모든 게임 (검색)</a></li>
+                    <li><a href="deep-discounts.html" data-ko="파격 할인" data-en="Deep Discounts">파격 할인</a></li>
+                    <li><a href="wishlist.html" data-ko="위시리스트" data-en="Wishlist">위시리스트</a></li>
+                </ul>
+                <div class="flex nav-auth" style="align-items: center; gap: var(--spacing-3);">
+                    <button class="nav-icon-btn" title="언어 변경: English / 한국어" onclick="toggleLanguage()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                        <span style="font-size: 0.6rem; font-weight: bold; line-height: 1;">KO</span>
+                    </button>
+                    <div id="g_id_signin"></div>
+                    <div id="userProfile" class="user-profile-nav" style="display: none;">
+                        <img id="userAvatar" src="" alt="Profile" class="avatar-sm">
+                        <span id="userName" class="user-name"></span>
+                        <button id="logoutBtn" class="btn btn-ghost btn-sm" data-ko="로그아웃" data-en="Logout">로그아웃</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -829,12 +882,12 @@
                             <span id="chartDate5"></span>
                         </div>
                     </div>
-                    <div class="mt-8 flex justify-between items-center bg-bg-color" style="background: var(--bg-color); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div class="mt-8 flex justify-between items-center bg-bg-color stat-highlight-box" style="background: var(--bg-color); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                         <div>
                             <div class="text-muted" style="font-size: 0.8rem;" data-ko="역대 최저가 (Historical Low)" data-en="Historical Low">역대 최저가 (Historical Low)</div>
                             <div id="historicalLowPrice" class="skeleton" style="font-size: 1.2rem; font-weight: bold; color: var(--success-color);">$0.00</div>
                         </div>
-                        <div style="text-align: right;">
+                        <div style="text-align: right;" class="stat-date-box">
                             <div class="text-muted" style="font-size: 0.8rem;" data-ko="마지막 최저가 일자" data-en="Date of Historical Low">마지막 최저가 일자</div>
                             <div id="historicalLowDate" class="skeleton" style="font-weight: bold;">0000년 00월 00일</div>
                         </div>
@@ -943,6 +996,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
     <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleLogin()"></script>
     <script src="translation.js"></script>
+    <script src="navbar.js"></script>
     <script type="module" src="auth.js"></script>
     <script type="module" src="detail.js"></script>
     <script>
