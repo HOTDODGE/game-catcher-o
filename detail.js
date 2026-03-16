@@ -1129,15 +1129,22 @@ function renderPriceHistoryChart(gameData, dealData) {
     if (dealData && dealData.gameInfo && dealData.gameInfo.retailPrice) {
         retail = parseFloat(dealData.gameInfo.retailPrice);
         const sale = parseFloat(dealData.gameInfo.salePrice);
-        // If sale is 0 but retail is high, it might be an error unless actually free
         current = (sale < 0.01 && retail > 0) ? retail : (sale || retail);
-    } else if (gameData.deals && gameData.deals.length > 0) {
-        retail = Math.max(...gameData.deals.map(d => parseFloat(d.retailPrice || 0)));
+    }
+    
+    // 🔥 Critical: Always sync 'current' with the ACTUAL lowest deal found in the list to avoid mismatch (e.g., $0.00 free games)
+    if (gameData.deals && gameData.deals.length > 0) {
+        const listRetail = Math.max(...gameData.deals.map(d => parseFloat(d.retailPrice || 0)));
+        if (listRetail > retail) retail = listRetail;
+
         const nonZeroDeals = gameData.deals.filter(d => parseFloat(d.price) >= 0.01);
-        const lowestDeal = nonZeroDeals.length > 0 
+        const lowestInList = nonZeroDeals.length > 0 
             ? nonZeroDeals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, nonZeroDeals[0])
             : gameData.deals[0];
-        current = parseFloat(lowestDeal.price);
+        
+        const listCurrent = parseFloat(lowestInList.price);
+        // Use the lower of the two or prioritize the list which is often more up-to-date
+        current = listCurrent; 
     }
 
     // Get Historical Low

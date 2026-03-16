@@ -151,7 +151,6 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
     const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}&v=${Date.now()}`;
 
     // Try multiple CORS proxies in sequence for reliability
-    // Re-ordered to prioritize allorigins and added a JSON wrapper fallback
     const proxies = [
         { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
         { name: 'allorigins-get', url: `https://api.allorigins.win/get?url=${encodeURIComponent(steamUrl)}`, type: 'wrapper' },
@@ -160,22 +159,34 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
 
     for (const proxy of proxies) {
         try {
+            console.log(`Attempting fetch via ${proxy.name}...`);
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // Shorter timeout for faster failover
 
-            const response = await fetch(proxy.url, { signal: controller.signal });
+            const response = await fetch(proxy.url, { 
+                signal: controller.signal,
+                headers: { 'Cache-Control': 'no-cache' } 
+            });
             clearTimeout(timeoutId);
 
-            if (!response.ok) continue;
+            if (!response.ok) {
+                console.warn(`Proxy ${proxy.name} failed with status ${response.status}`);
+                continue;
+            }
 
             let data;
             const textData = await response.text();
             
-            if (proxy.type === 'wrapper') {
-                const wrapper = JSON.parse(textData);
-                data = JSON.parse(wrapper.contents);
-            } else {
-                data = JSON.parse(textData);
+            try {
+                if (proxy.type === 'wrapper') {
+                    const wrapper = JSON.parse(textData);
+                    data = JSON.parse(wrapper.contents);
+                } else {
+                    data = JSON.parse(textData);
+                }
+            } catch (e) {
+                console.warn(`Failed to parse JSON from ${proxy.name}:`, e.message);
+                continue;
             }
 
             // Steam API returns { "APPID": { success: true, data: { ... } } }
