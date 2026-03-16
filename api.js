@@ -151,33 +151,32 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
     const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}&v=${Date.now()}`;
 
     // Try multiple CORS proxies in sequence for reliability
-    // Re-ordered to prioritize allorigins as corsproxy.io is blocking GitHub Pages
+    // Re-ordered to prioritize allorigins and added a JSON wrapper fallback
     const proxies = [
-        { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, headers: {} },
-        { url: `https://proxy.cors.sh/${steamUrl}`, headers: { 'x-cors-gratis': 'true' } },
-        { url: `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`, headers: {} },
+        { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
+        { name: 'allorigins-get', url: `https://api.allorigins.win/get?url=${encodeURIComponent(steamUrl)}`, type: 'wrapper' },
+        { name: 'corsproxy-io', url: `https://corsproxy.io/?${encodeURIComponent(steamUrl)}`, type: 'json' },
     ];
 
     for (const proxy of proxies) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s per proxy
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-            const response = await fetch(proxy.url, { 
-                signal: controller.signal,
-                headers: { 
-                    ...proxy.headers,
-                    'x-requested-with': 'XMLHttpRequest'
-                }
-            });
+            const response = await fetch(proxy.url, { signal: controller.signal });
             clearTimeout(timeoutId);
 
-            if (!response.ok) {
-                console.warn(`Proxy ${proxy.url} returned status ${response.status}`);
-                continue;
-            }
+            if (!response.ok) continue;
 
-            const data = await response.json();
+            let data;
+            const textData = await response.text();
+            
+            if (proxy.type === 'wrapper') {
+                const wrapper = JSON.parse(textData);
+                data = JSON.parse(wrapper.contents);
+            } else {
+                data = JSON.parse(textData);
+            }
 
             // Steam API returns { "APPID": { success: true, data: { ... } } }
             const appKey = Object.keys(data)[0];

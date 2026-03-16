@@ -248,10 +248,14 @@ async function initGameDetail() {
             heroBgImageContainer.style.background = `linear-gradient(to bottom, rgba(15,23,42,0.1) 0%, rgba(15,23,42,1) 100%), url('${gameData.info.thumb}') center/cover no-repeat`;
         }
 
-        // 3. Current Best Price in Hero Banner
+        // 3. Current Best Price in Hero Banner (Filter out suspicious $0.00 deals unless they are legit)
         if (bestPriceLabel && gameData.deals && gameData.deals.length > 0) {
-            // Deals are unordered, find minimum
-            const lowestDeal = gameData.deals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, gameData.deals[0]);
+            // Priority: Find lowest NON-ZERO price first, if all are zero, it's a free game
+            const nonZeroDeals = gameData.deals.filter(d => parseFloat(d.price) >= 0.01);
+            const lowestDeal = nonZeroDeals.length > 0 
+                ? nonZeroDeals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, nonZeroDeals[0])
+                : gameData.deals[0];
+
             bestPriceLabel.textContent = `$${parseFloat(lowestDeal.price).toFixed(2)}`;
             bestPriceLabel.style.color = 'var(--primary-color)';
 
@@ -1124,12 +1128,15 @@ function renderPriceHistoryChart(gameData, dealData) {
     // Get Retail & Current
     if (dealData && dealData.gameInfo && dealData.gameInfo.retailPrice) {
         retail = parseFloat(dealData.gameInfo.retailPrice);
-        current = parseFloat(dealData.gameInfo.salePrice || retail);
+        const sale = parseFloat(dealData.gameInfo.salePrice);
+        // If sale is 0 but retail is high, it might be an error unless actually free
+        current = (sale < 0.01 && retail > 0) ? retail : (sale || retail);
     } else if (gameData.deals && gameData.deals.length > 0) {
-        // Find highest retail as a proxy
         retail = Math.max(...gameData.deals.map(d => parseFloat(d.retailPrice || 0)));
-        // Find lowest current
-        const lowestDeal = gameData.deals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, gameData.deals[0]);
+        const nonZeroDeals = gameData.deals.filter(d => parseFloat(d.price) >= 0.01);
+        const lowestDeal = nonZeroDeals.length > 0 
+            ? nonZeroDeals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, nonZeroDeals[0])
+            : gameData.deals[0];
         current = parseFloat(lowestDeal.price);
     }
 
