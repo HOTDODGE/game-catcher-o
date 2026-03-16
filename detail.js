@@ -419,11 +419,15 @@ async function initGameDetail() {
                 const mid = (retail + lowestHistory) / 2;
                 
                 chartLabelHigh.textContent = `$${retail.toFixed(2)}`;
+                chartLabelHigh.style.top = '50px';
+                
                 chartLabelMid.textContent = `$${mid.toFixed(2)}`;
+                chartLabelMid.style.top = '125px';
                 
                 chartLabelLow.textContent = `$${lowestHistory.toFixed(2)} (최저가)`;
                 chartLabelLow.setAttribute("data-ko", `$${lowestHistory.toFixed(2)} (최저가)`);
                 chartLabelLow.setAttribute("data-en", `$${lowestHistory.toFixed(2)} (Historical Low)`);
+                chartLabelLow.style.top = '200px';
             }
             // --- Dynamic Chart Rendering & Tooltip Interaction ---
             const chartLine = document.querySelector('.chart-line');
@@ -432,7 +436,16 @@ async function initGameDetail() {
             
             if (chartLine && hoverOverlay && tooltip && info.retailPrice) {
                 const retail = parseFloat(info.retailPrice) || 59.99;
-                const current = parseFloat(info.salePrice) || retail;
+                
+                // Use the same lowest price logic as the sidebar hero section to ensure consistency
+                let current = retail;
+                if (gameData.deals && gameData.deals.length > 0) {
+                    const lowestDeal = gameData.deals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, gameData.deals[0]);
+                    current = parseFloat(lowestDeal.price);
+                } else if (info.salePrice) {
+                    current = parseFloat(info.salePrice);
+                }
+
                 let lowestHistory = retail;
                 if (dealData.cheapestPrice && dealData.cheapestPrice.price) {
                     lowestHistory = parseFloat(dealData.cheapestPrice.price);

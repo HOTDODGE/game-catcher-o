@@ -811,9 +811,9 @@
                     <p class="text-muted font-size-sm" style="word-break: keep-all; overflow-wrap: break-word;" data-ko="지난 1년 동안의 최저가 추이입니다. 현재 가격이 <strong>역대 최저가(Historical Low)</strong>에 근접한 좋은 타이밍인지 확인해 보세요." data-en="This is the lowest price trend over the past year. Check if the current price is a good time close to the <strong>Historical Low</strong>.">지난 1년 동안의 최저가 추이입니다. 현재 가격이 <strong>역대 최저가(Historical Low)</strong>에 근접한 좋은 타이밍인지 확인해 보세요.</p>
                     <div class="chart-container">
                         <!-- Y-axis labels -->
-                        <div id="chartLabelHigh" style="position:absolute; left:0; top:-10px; color:var(--text-muted); font-size:12px;">$59.99</div>
-                        <div id="chartLabelMid" style="position:absolute; left:0; top:40px; color:var(--text-muted); font-size:12px;">$39.99</div>
-                        <div id="chartLabelLow" style="position:absolute; left:0; top:90px; color:var(--text-muted); font-size:12px;">$19.99 (최저가)</div>
+                        <div id="chartLabelHigh" style="position:absolute; left:0; top:50px; color:var(--text-muted); font-size:12px;">$0.00</div>
+                        <div id="chartLabelMid" style="position:absolute; left:0; top:125px; color:var(--text-muted); font-size:12px;">$0.00</div>
+                        <div id="chartLabelLow" style="position:absolute; left:0; top:200px; color:var(--text-muted); font-size:12px;">$0.00 (최저가)</div>
                         <!-- Drawing Line SVG Background -->
                         <div class="chart-line"></div>
                         <!-- Hover Overlay for Interaction -->
@@ -832,7 +832,7 @@
                     <div class="mt-8 flex justify-between items-center bg-bg-color" style="background: var(--bg-color); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                         <div>
                             <div class="text-muted" style="font-size: 0.8rem;" data-ko="역대 최저가 (Historical Low)" data-en="Historical Low">역대 최저가 (Historical Low)</div>
-                            <div id="historicalLowPrice" class="skeleton" style="font-size: 1.2rem; font-weight: bold; color: var(--success-color);">₩0,000</div>
+                            <div id="historicalLowPrice" class="skeleton" style="font-size: 1.2rem; font-weight: bold; color: var(--success-color);">$0.00</div>
                         </div>
                         <div style="text-align: right;">
                             <div class="text-muted" style="font-size: 0.8rem;" data-ko="마지막 최저가 일자" data-en="Date of Historical Low">마지막 최저가 일자</div>
@@ -864,10 +864,10 @@
                 <div class="buy-card">
                     <div class="text-muted" style="margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
                         <span data-ko="현재 최저가" data-en="Current Best Price">현재 최저가</span>
-                        <span class="skeleton" id="retailPriceLabel" style="text-decoration: line-through;">₩00,000</span>
+                        <span class="skeleton" id="retailPriceLabel" style="text-decoration: line-through;">$0.00</span>
                     </div>
                     <div class="best-price-highlight">
-                        <span class="best-price skeleton" id="currentBestPrice">₩00,000</span>
+                        <span class="best-price skeleton" id="currentBestPrice">$0.00</span>
                         <span class="list-badge-discount hl skeleton" id="mainDiscountBadge" style="padding: 0.3rem 0.5rem; font-size: 1rem;">-00%</span>
                     </div>
 
