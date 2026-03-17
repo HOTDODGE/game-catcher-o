@@ -189,9 +189,12 @@ async function initGameDetail() {
         return;
     }
 
+    // 4. Initialize Price Alert Modal early so it works even if other data takes time
+    initPriceAlertModal(gameId);
+
     const dealId = getQueryParam('dealID');
 
-    // 4. Fetch initial data in parallel to save time
+    // 5. Fetch initial data in parallel to save time
     const fetchPromises = [
         fetchStores(),
         fetchGameDetails(gameId)
@@ -201,7 +204,18 @@ async function initGameDetail() {
     }
 
     const [storeData, gameData, dealData] = await Promise.all(fetchPromises);
-    currentGameData = gameData; // Save for wishlist
+    
+    // --- Data Integrity Check ---
+    if (!gameData || !gameData.info) {
+        console.error("Critical: Could not fetch core game data.");
+        // Cleanup skeletons and show error message
+        document.querySelectorAll('.skeleton').forEach(el => el.classList.remove('skeleton'));
+        if (heroTitleContainer) heroTitleContainer.textContent = window.currentLang === 'en' ? "Could not load game info" : "게임 정보를 불러올 수 없습니다.";
+        if (storeListContainer) storeListContainer.innerHTML = `<div class="text-center p-8 text-muted">${window.currentLang === 'en' ? 'Data not available' : '데이터를 가져올 수 없습니다.'}</div>`;
+        return;
+    }
+
+    currentGameData = gameData; 
     
     let info = gameData.info;
     const cheapest = gameData.cheapestPriceEver;
@@ -209,9 +223,11 @@ async function initGameDetail() {
 
     // Update Header
     if (heroTitleContainer) {
-        heroTitleContainer.textContent = info.title || 'Game Details';
+        // Fix: dealData contains 'name', gameData contains 'title'
+        const displayTitle = info.title || (dealData && dealData.gameInfo ? dealData.gameInfo.name : '') || 'Game Details';
+        heroTitleContainer.textContent = displayTitle;
         heroTitleContainer.classList.remove('skeleton');
-        document.title = `${info.title} 정보 및 최저가 - GameCatcher`;
+        document.title = `${displayTitle} 정보 및 최저가 - GameCatcher`;
     }
 
     // Map Store IDs
@@ -224,18 +240,18 @@ async function initGameDetail() {
         
         // 1. Title Resolution (Handle '-' or deficient names)
         let resolvedTitle = gameData.info.title;
-        if (resolvedTitle === '-' && dealData && dealData.gameInfo && dealData.gameInfo.name) {
+        if ((resolvedTitle === '-' || !resolvedTitle) && dealData && dealData.gameInfo && dealData.gameInfo.name) {
             resolvedTitle = dealData.gameInfo.name;
         }
 
         if (heroTitleContainer) {
-            heroTitleContainer.textContent = resolvedTitle;
+            heroTitleContainer.textContent = resolvedTitle || 'Game Details';
             heroTitleContainer.style.background = 'none';
             heroTitleContainer.style.webkitTextFillColor = 'initial'; 
             heroTitleContainer.style.color = '#fff';
             
             // Set Page Title dynamically
-            document.title = `${resolvedTitle} 정보 및 최저가 - GameCatcher`;
+            document.title = `${resolvedTitle || 'Game Details'} 정보 및 최저가 - GameCatcher`;
         }
 
         const modalTitle = document.getElementById('modalTitle');
@@ -248,13 +264,10 @@ async function initGameDetail() {
             heroBgImageContainer.style.background = `linear-gradient(to bottom, rgba(15,23,42,0.1) 0%, rgba(15,23,42,1) 100%), url('${gameData.info.thumb}') center/cover no-repeat`;
         }
 
-        // 3. Current Best Price in Hero Banner (Filter out suspicious $0.00 deals unless they are legit)
+        // 3. Current Best Price in Hero Banner (Trust CheapShark data - include valid $0.00 deals)
         if (bestPriceLabel && gameData.deals && gameData.deals.length > 0) {
-            // Priority: Find lowest NON-ZERO price first, if all are zero, it's a free game
-            const nonZeroDeals = gameData.deals.filter(d => parseFloat(d.price) >= 0.01);
-            const lowestDeal = nonZeroDeals.length > 0 
-                ? nonZeroDeals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, nonZeroDeals[0])
-                : gameData.deals[0];
+            // Find absolute lowest price among all deals
+            const lowestDeal = gameData.deals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, gameData.deals[0]);
 
             bestPriceLabel.textContent = `$${parseFloat(lowestDeal.price).toFixed(2)}`;
             bestPriceLabel.style.color = 'var(--primary-color)';
@@ -297,8 +310,7 @@ async function initGameDetail() {
             if (historicalLowDate) historicalLowDate.textContent = lowDate;
         }
         
-        // 5. Price Alert Modal Logic
-        initPriceAlertModal(gameId);
+        // 5. Price Alert Modal Logic already initialized at the top
         
         // --- Populate Sidebar Deals ---
         renderStoreDeals(gameData.deals);
@@ -315,13 +327,11 @@ async function initGameDetail() {
                 info.steamAppID = extractedAppID;
             }
 
-            // If game title is "-" (common in CheapShark for non-English games), use a placeholder until Steam loads
-            if (info.title === '-' || !info.title) {
-                heroTitleContainer.textContent = 'Loading Game Name...';
-                document.title = '게임 정보 불러오는 중... - GameCatcher';
-            } else {
-                heroTitleContainer.textContent = info.title;
-                document.title = `${info.title} 정보 및 최저가 - GameCatcher`;
+            // Sync Header Title with dealData.gameInfo.name if gameData.info.title was missing or '-'
+            const finalTitle = (info.title && info.title !== '-') ? info.title : (info.name || gameData.info.title || 'Game Details');
+            if (heroTitleContainer) {
+                heroTitleContainer.textContent = finalTitle;
+                document.title = `${finalTitle} 정보 및 최저가 - GameCatcher`;
             }
 
             // Meta Pills (Release Date & Publisher)
@@ -658,9 +668,10 @@ function showFallbackMedia(steamAppID, thumbUrl) {
 
     // Standard static Steam image paths - often accessible even if API is blocked
     const fallbackAssets = [
+        { type: 'image', src: `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${steamAppID}/header.jpg` },
         { type: 'image', src: `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppID}/header.jpg` },
-        { type: 'image', src: `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppID}/library_hero.jpg` },
-        { type: 'image', src: `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppID}/library_600x900.jpg` }
+        { type: 'image', src: `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${steamAppID}/header.jpg` },
+        { type: 'image', src: `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${steamAppID}/library_hero.jpg` }
     ];
 
     // If we have a thumb from CheapShark, put it first if it's different
@@ -739,7 +750,11 @@ function initMediaCarousel(steamInfo) {
         });
     }
 
-    if (mediaItems.length === 0) return;
+    if (mediaItems.length === 0) {
+        galleryContainer.classList.remove('skeleton');
+        galleryContainer.innerHTML = `<div class="p-8 text-center text-muted">No media available.</div>`;
+        return;
+    }
 
     // Build Carousel DOM
     galleryContainer.classList.add('carousel');
@@ -1170,6 +1185,28 @@ function initPriceAlertModal(gameID) {
             });
 
             if (success) {
+                // 3. Save to Local Storage for Profile Overlay
+                if (currentGameData && currentGameData.info) {
+                    const alertData = {
+                        gameID: gameID,
+                        title: currentGameData.info.title || 'Unknown Game',
+                        thumb: currentGameData.info.thumb || '',
+                        targetPrice: price,
+                        timestamp: Date.now()
+                    };
+                    
+                    try {
+                        let alerts = JSON.parse(localStorage.getItem('user_alerts') || '[]');
+                        // Remove existing alert for the same game if any
+                        alerts = alerts.filter(a => a.gameID !== gameID);
+                        alerts.unshift(alertData); // Add new one to top
+                        localStorage.setItem('user_alerts', JSON.stringify(alerts));
+                        console.log("[Local Storage] Price alert saved locally for overlay.");
+                    } catch (e) {
+                        console.warn("Could not save alert to localStorage:", e);
+                    }
+                }
+
                 alert(window.currentLang === 'en' ? 'Price alert has been set!' : '목표가 알림이 성공적으로 등록되었습니다!');
                 if (typeof window.closeModal === 'function') window.closeModal();
                 else if (document.getElementById('priceModal')) document.getElementById('priceModal').classList.remove('active');

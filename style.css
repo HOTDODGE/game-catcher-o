@@ -73,6 +73,36 @@
   --transition-bounce: 400ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Skeleton Loading UI - Critical Path */
+.skeleton {
+  background-color: var(--surface-hover);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite linear;
+  border-radius: var(--radius-sm);
+  color: transparent !important; /* Hide text during skeleton */
+  cursor: default;
+}
+
+.skeleton-shimmer {
+    animation: skeleton-shimmer 1.5s infinite linear;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-block {
+    display: block;
+    margin-bottom: var(--spacing-2);
+}
+
 /* Base Styles */
 * {
   box-sizing: border-box;
@@ -397,10 +427,17 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--spacing-3);
-  padding: var(--spacing-1) var(--spacing-2);
   background-color: var(--secondary-color);
+  padding: 4px 12px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
+  cursor: pointer; /* Clickable for Alerts List */
+  transition: all var(--transition-fast);
+}
+.user-profile-nav:hover {
+  background-color: var(--secondary-hover);
+  border-color: var(--primary-hover);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
 }
 .avatar-sm {
   width: 32px;
@@ -1250,6 +1287,91 @@ footer {
   justify-content: flex-end;
   gap: var(--spacing-3);
 }
+  
+/* Alerts Overlay List Styles */
+.alerts-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+.alerts-list::-webkit-scrollbar {
+  width: 6px;
+}
+.alerts-list::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+.alert-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  background-color: var(--surface-hover);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-3);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+  border: 1px solid transparent;
+}
+.alert-item:hover {
+  transform: translateX(4px);
+  background-color: var(--secondary-hover);
+  border-color: var(--border-color);
+}
+.alert-thumb {
+  width: 80px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background-color: #000;
+}
+.alert-info {
+  flex: 1;
+  min-width: 0;
+}
+.alert-game-title {
+  font-weight: var(--weight-bold);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-main);
+}
+.alert-price-tag {
+  font-size: var(--font-size-xs);
+  color: var(--success-color);
+  font-weight: var(--weight-medium);
+}
+.btn-delete-alert {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: var(--spacing-2);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+.btn-delete-alert:hover {
+  color: var(--danger-color);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+.empty-alerts {
+  text-align: center;
+  padding: var(--spacing-12) var(--spacing-6);
+  color: var(--text-muted);
+}
+.empty-alerts-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-4);
+  opacity: 0.3;
+}
 
 /* ========================================================================= */
 /* Global Responsive Utilities */
@@ -1500,20 +1622,6 @@ footer {
     padding: 0.1rem 0.25rem;
   }
 }
-/* Skeleton Loading UI */
-.skeleton {
-  background-color: var(--surface-hover);
-  background-image: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0) 0,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s infinite linear;
-  border-radius: var(--radius-sm);
-}
-
 @keyframes skeleton-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }

@@ -33,24 +33,28 @@ export async function fetchDeals(params = {}) {
     }
 }
 
-/**
- * Fetch detailed information for a specific game by its internal GameID.
- * @param {string|number} gameId - The ID of the game
- * @returns {Promise<Object|null>} Game details object or null on error
- */
-export async function fetchGameDetails(gameId) {
+export async function fetchGameDetails(gameId, retries = 2) {
     if (!gameId) return null;
     
-    try {
-        const response = await fetch(`${BASE_URL}/games?id=${gameId}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(`${BASE_URL}/games?id=${gameId}`);
+            if (!response.ok) {
+                if (response.status === 429) {
+                    console.warn(`Rate limited on fetchGameDetails. Attempt ${i+1}/${retries}`);
+                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+                    continue;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Attempt ${i+1} failed for game ${gameId}:`, error);
+            if (i === retries - 1) return null;
+            await new Promise(r => setTimeout(r, 500));
         }
-        return await response.json();
-    } catch (error) {
-        console.error(`Could not fetch details for game ${gameId}:`, error);
-        return null;
     }
+    return null;
 }
 
 /**
@@ -115,25 +119,28 @@ export function getStoreIconUrl(relativePath) {
     return `https://www.cheapshark.com${relativePath}`;
 }
 
-/**
- * Fetch detailed information for a specific deal by its dealID.
- * This provides richer data like Metacritic score and Steam ratings.
- * @param {string} dealId - The DEAL ID
- * @returns {Promise<Object|null>} Deal details object or null on error
- */
-export async function fetchDealDetails(dealId) {
+export async function fetchDealDetails(dealId, retries = 2) {
     if (!dealId) return null;
     
-    try {
-        const response = await fetch(`${BASE_URL}/deals?id=${encodeURIComponent(dealId)}`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(`${BASE_URL}/deals?id=${encodeURIComponent(dealId)}`);
+            if (!response.ok) {
+                if (response.status === 429) {
+                    console.warn(`Rate limited on fetchDealDetails. Attempt ${i+1}/${retries}`);
+                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+                    continue;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Attempt ${i+1} failed for deal ${dealId}:`, error);
+            if (i === retries - 1) return null;
+            await new Promise(r => setTimeout(r, 500));
         }
-        return await response.json();
-    } catch (error) {
-        console.error(`Could not fetch details for deal ${dealId}:`, error);
-        return null;
     }
+    return null;
 }
 
 /**
@@ -166,8 +173,7 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
             const timeoutId = setTimeout(() => controller.abort(), 8000); // Shorter timeout for faster failover
 
             const response = await fetch(proxy.url, { 
-                signal: controller.signal,
-                headers: { 'Cache-Control': 'no-cache' } 
+                signal: controller.signal
             });
             clearTimeout(timeoutId);
 
@@ -227,16 +233,16 @@ export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
     return null;
 }
 
-/**
- * Extracts Steam AppID from a typical Steam thumbnail URL.
- * Example: https://cdn.akamai.steamstatic.com/steam/apps/3069040/capsule_sm_120.jpg -> 3069040
- * @param {string} thumbUrl 
- * @returns {string|null}
- */
 export function extractSteamAppIDFromThumb(thumbUrl) {
     if (!thumbUrl) return null;
+    // Standard: images.akamai.steamstatic.com/steam/apps/APPID/... 
+    // New CDN (Fastly/Cloudflare): shared.fastly.steamstatic.com/store_item_assets/steam/apps/APPID/...
     const match = thumbUrl.match(/\/apps\/(\d+)\//);
-    return match ? match[1] : null;
+    if (match) return match[1];
+    
+    // Fallback for some other patterns
+    const matchAlt = thumbUrl.match(/[\/](\d+)[\/]capsule/);
+    return matchAlt ? matchAlt[1] : null;
 }
 
 /**
@@ -346,8 +352,7 @@ export async function fetchSteamReviews(steamAppID, count = 20) {
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
             const response = await fetch(proxy.url, { 
-                signal: controller.signal,
-                headers: { 'Cache-Control': 'no-cache' }
+                signal: controller.signal
             });
             clearTimeout(timeoutId);
 
@@ -413,7 +418,7 @@ export async function setPriceAlert({ action = 'set', email, gameID, price }) {
         const response = await fetch(url);
         // CheapShark /alerts returns 1 (true) for success, 0 (false) for failure
         const result = await response.text();
-        return result === '1' || result === 'true';
+        return result.trim() === '1' || result.trim() === 'true';
     } catch (error) {
         console.error("Could not set price alert:", error);
         return false;
