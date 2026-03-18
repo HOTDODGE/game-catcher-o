@@ -197,9 +197,9 @@ function renderPagination() {
     const prevDisabled = currentPage === 0 ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : '';
     html += `<button class="page-btn" ${prevDisabled} onclick="window.goToPage(${currentPage - 1})">&lt;</button>`;
 
-    // calculate range
-    let startPage = Math.max(0, currentPage - 2);
-    let endPage = Math.min(totalPages - 1, currentPage + 2);
+    // calculate range: Show only 1 page before and after current for simplicity
+    let startPage = Math.max(0, currentPage - 1);
+    let endPage = Math.min(totalPages - 1, currentPage + 1);
 
     if (startPage > 0) {
         html += `<button class="page-btn" onclick="window.goToPage(0)">1</button>`;
