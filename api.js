@@ -424,3 +424,68 @@ export async function setPriceAlert({ action = 'set', email, gameID, price }) {
         return false;
     }
 }
+/**
+ * Fetch top seller games from Steam and map them to CheapShark deals.
+ * Returns the top 10 sellers that have an active deal on CheapShark.
+ * @returns {Promise<Array>} Array of deal objects
+ */
+export async function fetchTopSellers() {
+    try {
+        // 1. Get Steam Top Sellers via CORS proxy
+        const steamApiUrl = 'https://store.steampowered.com/api/featuredcategories?l=english';
+        
+        // corsproxy.io is often more reliable for raw JSON
+        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(steamApiUrl)}`;
+        
+        console.log("Fetching Steam Top Sellers via corsproxy.io...");
+        let response = await fetch(proxyUrl);
+        
+        // Fallback to allorigins if corsproxy.io fails
+        if (!response.ok) {
+            console.warn("corsproxy.io failed, falling back to allorigins...");
+            const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(steamApiUrl)}`;
+            response = await fetch(allOriginsUrl);
+            if (!response.ok) throw new Error("All CORS proxies failed");
+            const wrapper = await response.json();
+            const data = JSON.parse(wrapper.contents);
+            var topSellers = data.top_sellers?.items || [];
+        } else {
+            const data = await response.json();
+            var topSellers = data.top_sellers?.items || [];
+        }
+        
+        // 2. Extract more AppIDs to ensure we can find 10 with CheapShark deals
+        // Many top sellers might not have active deals or might be new releases not yet in CheapShark
+        const candidateAppIDs = topSellers.slice(0, 50).map(item => item.id);
+        
+        if (candidateAppIDs.length === 0) return [];
+
+        // 3. Map AppIDs to CheapShark deals
+        const validDeals = [];
+        const BATCH_SIZE = 5; // Process in small batches to be efficient and avoid heavy rate limits
+
+        for (let i = 0; i < candidateAppIDs.length; i += BATCH_SIZE) {
+            const batch = candidateAppIDs.slice(i, i + BATCH_SIZE);
+            const batchResults = await Promise.all(batch.map(async (appID) => {
+                try {
+                    const { deals } = await fetchDeals({ steamAppID: appID, pageSize: 1 });
+                    return deals.length > 0 ? deals[0] : null;
+                } catch (e) {
+                    return null;
+                }
+            }));
+
+            const filteredBatch = batchResults.filter(d => d !== null);
+            validDeals.push(...filteredBatch);
+
+            // Once we have 10, we can stop
+            if (validDeals.length >= 10) break;
+        }
+
+        return validDeals.slice(0, 10);
+        
+    } catch (error) {
+        console.error("Could not fetch top sellers:", error);
+        return [];
+    }
+}

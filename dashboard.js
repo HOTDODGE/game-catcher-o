@@ -1,9 +1,10 @@
-import { fetchDeals, fetchStores, getStoreIconUrl, sanitizeHTML, searchGames, extractSteamAppIDFromThumb } from './api.js';
+import { fetchDeals, fetchStores, getStoreIconUrl, sanitizeHTML, searchGames, extractSteamAppIDFromThumb, fetchTopSellers } from './api.js';
 import { isInWishlist, toggleWishlist } from './wishlist-manager.js';
 
 // Elements
 const historicLowsContainer = document.getElementById('historicLowsGrid');
 const popularDealsContainer = document.getElementById('popularDealsGrid');
+const topSellersContainer = document.getElementById('topSellersGrid');
 
 let storesMap = {}; // Cache for quick store ID to Name/Icon lookups
 
@@ -47,7 +48,7 @@ function createGameCardHTML(deal) {
     }
 
     return `
-        <article class="game-card" style="cursor: pointer;" onclick="window.location.href='game-detail.html?id=${deal.gameID}&dealID=${deal.dealID}'">
+        <article class="game-card" style="cursor: pointer; position: relative;" onclick="window.location.href='game-detail.html?id=${deal.gameID}&dealID=${deal.dealID}'">
             <div class="card-image-wrap">
                 <div class="badge-discount">-${discount}%</div>
                 <div class="badge-platform">${storeName}</div>
@@ -58,6 +59,7 @@ function createGameCardHTML(deal) {
                 <div class="game-meta">Steam Rating: <span style="color:var(--text-main); font-weight:bold;">${deal.steamRatingPercent || 'N/A'}%</span></div>
                 <div class="card-footer" onclick="event.stopPropagation()">
                     <div class="flex items-center gap-2" style="margin-right: auto;">
+                        ${deal.rank ? `<div class="rank-badge ${deal.rank <= 3 ? `rank-badge-${deal.rank}` : ''}">${deal.rank}</div>` : ''}
                         ${hlBadgeHTML}
                         <button class="btn-wishlist ${isWishlisted ? 'active' : ''}" 
                                 title="위시리스트 추가" 
@@ -111,6 +113,18 @@ function showLoadingState() {
 
     if (historicLowsContainer) historicLowsContainer.innerHTML = skeletonHTML;
     if (popularDealsContainer) popularDealsContainer.innerHTML = skeletonHTML;
+    
+    if (topSellersContainer) {
+        const topSellersSkeleton = `
+            <div class="skeleton-card">
+                <div class="skeleton-image skeleton" style="aspect-ratio: 16/9;"></div>
+                <div class="skeleton-content">
+                    <div class="skeleton-title skeleton"></div>
+                </div>
+            </div>
+        `.repeat(10);
+        topSellersContainer.innerHTML = topSellersSkeleton;
+    }
 }
 
 /**
@@ -136,6 +150,33 @@ async function loadDealsForPlatform(platform) {
 
     if (historicLowsContainer) renderCards(hlData.deals,  historicLowsContainer);
     if (popularDealsContainer)  renderCards(popData.deals, popularDealsContainer);
+}
+
+/**
+ * 전용 판매 순위 카드 렌더링
+ */
+async function loadTopSellers() {
+    if (!topSellersContainer) return;
+
+    try {
+        const topSellers = await fetchTopSellers();
+        
+        if (!topSellers || topSellers.length === 0) {
+            topSellersContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted);">판매 순위 데이터를 불러올 수 없습니다.</div>`;
+            return;
+        }
+
+        const html = topSellers.map((deal, index) => {
+            // 순위 정보 추가
+            deal.rank = index + 1;
+            return createGameCardHTML(deal);
+        }).join('');
+
+        topSellersContainer.innerHTML = sanitizeHTML(html);
+    } catch (e) {
+        console.error("Failed to load top sellers:", e);
+        topSellersContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--danger-color);">데이터 로드 중 오류가 발생했습니다.</div>`;
+    }
 }
 
 /**
@@ -259,7 +300,10 @@ async function initDashboard() {
     setupFilterButtons();
 
     // 3. 초기 데이터 로드 (전체 플랫폼)
-    await loadDealsForPlatform('all');
+    await Promise.all([
+        loadDealsForPlatform('all'),
+        loadTopSellers()
+    ]);
 
     // 4. 랜덤 뽑기 초기화
     await initRandomPicker();

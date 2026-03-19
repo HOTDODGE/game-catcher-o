@@ -97,6 +97,16 @@
     </header>
 
     <main class="container">
+        <!-- Section 0: Top 10 Sales Rank -->
+        <div class="flex items-center justify-between mb-6">
+            <h2 style="margin: 0;" data-ko="🏆 실시간 판매 순위 Top 10" data-en="🏆 Real-time Top 10 Sellers">🏆 실시간 판매 순위 Top 10</h2>
+        </div>
+        
+        <!-- Game Grid 0: Top 10 Sellers (2x5 Grid) -->
+        <div id="topSellersGrid" class="top-sellers-grid mb-12">
+            <!-- Cards will be injected by dashboard.js -->
+        </div>
+
         <!-- Filter Bar -->
         <div class="filter-bar">
             <div class="filter-group" id="platformFilterGroup">
@@ -137,7 +147,12 @@
     <footer>
         <div class="container">
             <p data-ko="&copy; 2026 GameCatcher. 모든 권리 보유." data-en="&copy; 2026 GameCatcher. All rights reserved.">&copy; 2026 GameCatcher. All rights reserved.</p>
-            <p class="mt-2 text-muted" style="font-size: 12px;" data-ko="본 사이트는 각 플랫폼의 제휴 프로그램을 통해 수익을 창출할 수 있습니다." data-en="This site may earn revenue through the affiliate programs of each platform.">본 사이트는 각 플랫폼의 제휴 프로그램을 통해 수익을 창출할 수 있습니다.</p>
+            <p class="mt-2 text-muted" style="font-size: 12px;">
+                <span data-ko="본 사이트는 각 플랫폼의 제휴 프로그램을 통해 수익을 창출할 수 있습니다." data-en="This site may earn revenue through the affiliate programs of each platform.">본 사이트는 각 플랫폼의 제휴 프로그램을 통해 수익을 창출할 수 있습니다.</span>
+                <br>
+                <span data-ko="데이터 제공: " data-en="Powered by ">데이터 제공: </span>
+                <a href="https://www.cheapshark.com/" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color); text-decoration: underline;">CheapShark</a>
+            </p>
         </div>
     </footer>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>

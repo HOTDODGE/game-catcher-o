@@ -166,6 +166,77 @@ a:hover {
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 
+/* Top Sellers Specific 2x5 Grid */
+.top-sellers-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(2, auto);
+    gap: var(--spacing-4);
+}
+
+@media (max-width: 1024px) {
+    .top-sellers-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .top-sellers-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .top-sellers-grid {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: var(--spacing-4);
+        scroll-snap-type: x mandatory;
+        gap: var(--spacing-3);
+    }
+    .top-sellers-grid .game-card {
+        flex: 0 0 160px;
+        scroll-snap-align: start;
+    }
+}
+
+/* Rank Badge Styles */
+.rank-badge {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    background: var(--secondary-color);
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--weight-bold);
+    font-size: 0.75rem;
+    border-radius: 4px;
+    z-index: 5;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+}
+
+.rank-badge-1 {
+    background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
+    color: #000;
+    border: none;
+}
+
+.rank-badge-2 {
+    background: linear-gradient(135deg, #c0c0c0 0%, #708090 100%);
+    color: #000;
+    border: none;
+}
+
+.rank-badge-3 {
+    background: linear-gradient(135deg, #cd7f32 0%, #8b4513 100%);
+    color: #000;
+    border: none;
+}
+
 /* Flex Layouts */
 .flex { display: flex; }
 .flex-col { flex-direction: column; }
