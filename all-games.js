@@ -255,19 +255,39 @@ function setupFilters() {
         btnApplyFilters.addEventListener('click', () => loadGamesWrapper(0));
     }
 
-    // Price Slider UI Update
+    // Price Slider UI Update & Auto-reload
     const priceSlider = document.getElementById('priceSliderInput');
     const priceLabel = document.getElementById('priceSliderLabel');
     if (priceSlider && priceLabel) {
         priceSlider.addEventListener('input', (e) => {
             const val = parseInt(e.target.value, 10);
             if(val >= 100000) {
-                priceLabel.textContent = '제한 없음';
+                priceLabel.textContent = (document.documentElement.lang === 'en' ? 'No Limit' : '제한 없음');
             } else {
-                priceLabel.textContent = `₩${val.toLocaleString()} 이하`;
+                priceLabel.textContent = `₩${val.toLocaleString()}` + (document.documentElement.lang === 'en' ? ' or less' : ' 이하');
             }
         });
+        // Reload when the user stops sliding
+        priceSlider.addEventListener('change', () => loadGamesWrapper(0));
     }
+
+    // Auto-reload on Discount Radio change
+    const discountRadios = document.querySelectorAll('input[name="discount"]');
+    discountRadios.forEach(radio => {
+        radio.addEventListener('change', () => loadGamesWrapper(0));
+    });
+
+    // Auto-reload on Platform Checkbox change
+    const platformCheckboxes = document.querySelectorAll('.filter-custom-input[type="checkbox"]');
+    platformCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => loadGamesWrapper(0));
+    });
+
+    // Auto-reload on Genre Checkbox change
+    const genreCheckboxes = document.querySelectorAll('.checkbox-group input[type="checkbox"]');
+    genreCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => loadGamesWrapper(0));
+    });
 }
 
 async function initAllGames() {
