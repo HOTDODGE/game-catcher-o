@@ -431,59 +431,77 @@ export async function setPriceAlert({ action = 'set', email, gameID, price }) {
  */
 export async function fetchTopSellers() {
     try {
-        // 1. Get Steam Top Sellers via CORS proxy
+        // 1. Try Netlify Function first (Recommended for production)
+        const netlifyFuncUrl = '/.netlify/functions/steam-top-sellers';
         const steamApiUrl = 'https://store.steampowered.com/api/featuredcategories?l=english';
         
-        // corsproxy.io is often more reliable for raw JSON
-        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(steamApiUrl)}`;
-        
-        console.log("Fetching Steam Top Sellers via corsproxy.io...");
-        let response = await fetch(proxyUrl);
-        
-        // Fallback to allorigins if corsproxy.io fails
-        if (!response.ok) {
-            console.warn("corsproxy.io failed, falling back to allorigins...");
-            const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(steamApiUrl)}`;
-            response = await fetch(allOriginsUrl);
-            if (!response.ok) throw new Error("All CORS proxies failed");
-            const wrapper = await response.json();
-            const data = JSON.parse(wrapper.contents);
-            var topSellers = data.top_sellers?.items || [];
-        } else {
-            const data = await response.json();
-            var topSellers = data.top_sellers?.items || [];
-        }
-        
-        // 2. Extract more AppIDs to ensure we can find 10 with CheapShark deals
-        // Many top sellers might not have active deals or might be new releases not yet in CheapShark
-        const candidateAppIDs = topSellers.slice(0, 50).map(item => item.id);
-        
-        if (candidateAppIDs.length === 0) return [];
+        try {
+            console.log("Fetching pre-mapped Top Sellers via Netlify Function...");
+            const response = await fetch(netlifyFuncUrl);
+            if (response.ok) {
+                const data = await response.json();
+                // Server now returns already ranked and de-duplicated deals
+                return data.top_sellers?.items || [];
+            } else {
+                throw new Error("Netlify Function failed or not available");
+            }
+        } catch (e) {
+            console.warn("Netlify Function failed, falling back to client-side mapping:", e.message);
+            
+            // Fallback: Perform aggregation and mapping in the browser (less reliable due to CORS/Rate-limits)
+            const fetchFromProxy = async (proxyBase) => {
+                const url = `${proxyBase}${encodeURIComponent(steamApiUrl)}`;
+                const res = await fetch(url);
+                if (!res.ok) return [];
+                const data = proxyBase.includes('allorigins') 
+                    ? JSON.parse((await res.json()).contents) 
+                    : await res.json();
+                
+                const combinedIDs = [];
+                const seenIDs = new Set();
+                ['top_sellers', 'new_releases', 'specials', 'coming_soon'].forEach(cat => {
+                    if (data[cat] && data[cat].items) {
+                        data[cat].items.forEach(item => {
+                            if (!seenIDs.has(item.id)) {
+                                seenIDs.add(item.id);
+                                combinedIDs.push(item.id);
+                            }
+                        });
+                    }
+                });
+                return combinedIDs;
+            };
 
-        // 3. Map AppIDs to CheapShark deals
-        const validDeals = [];
-        const BATCH_SIZE = 5; // Process in small batches to be efficient and avoid heavy rate limits
+            let candidateAppIDs = await fetchFromProxy('https://corsproxy.io/?url=');
+            if (candidateAppIDs.length === 0) {
+                candidateAppIDs = await fetchFromProxy('https://api.allorigins.win/get?url=');
+            }
 
-        for (let i = 0; i < candidateAppIDs.length; i += BATCH_SIZE) {
-            const batch = candidateAppIDs.slice(i, i + BATCH_SIZE);
-            const batchResults = await Promise.all(batch.map(async (appID) => {
-                try {
-                    const { deals } = await fetchDeals({ steamAppID: appID, pageSize: 1 });
-                    return deals.length > 0 ? deals[0] : null;
-                } catch (e) {
+            if (candidateAppIDs.length === 0) return [];
+
+            const validDeals = [];
+            const seenGameIDs = new Set();
+            const BATCH_SIZE = 6;
+
+            for (let i = 0; i < candidateAppIDs.length; i += BATCH_SIZE) {
+                const batch = candidateAppIDs.slice(i, i + BATCH_SIZE);
+                const batchResults = await Promise.all(batch.map(async (appID) => {
+                    try {
+                        const { deals } = await fetchDeals({ steamAppID: appID, pageSize: 1 });
+                        if (deals.length > 0 && !seenGameIDs.has(deals[0].gameID)) {
+                            seenGameIDs.add(deals[0].gameID);
+                            return deals[0];
+                        }
+                    } catch (err) {}
                     return null;
-                }
-            }));
+                }));
 
-            const filteredBatch = batchResults.filter(d => d !== null);
-            validDeals.push(...filteredBatch);
+                validDeals.push(...batchResults.filter(d => d !== null));
+                if (validDeals.length >= 10) break;
+            }
 
-            // Once we have 10, we can stop
-            if (validDeals.length >= 10) break;
+            return validDeals.slice(0, 10).map((deal, idx) => ({ ...deal, rank: idx + 1 }));
         }
-
-        return validDeals.slice(0, 10);
-        
     } catch (error) {
         console.error("Could not fetch top sellers:", error);
         return [];
