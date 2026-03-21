@@ -166,6 +166,21 @@ a:hover {
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 
+/* Responsive Grid Adjustments */
+@media (max-width: 1024px) {
+    .grid-4 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+    .grid-4, .grid-3, .grid-2 { 
+        grid-template-columns: 1fr; 
+        gap: var(--spacing-4);
+    }
+}
+
 /* Top Sellers Specific 2x5 Grid */
 .top-sellers-grid {
     display: grid;
@@ -939,6 +954,12 @@ a:hover {
   transform: translateY(-8px);
   box-shadow: var(--shadow-xl), var(--shadow-glow);
   border-color: var(--primary-color);
+}
+
+.game-card:active {
+  background-color: var(--secondary-hover);
+  transform: translateY(-4px) scale(0.98);
+  transition: transform 0.1s, background-color 0.1s;
 }
 
 .card-image-wrap {

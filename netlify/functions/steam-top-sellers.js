@@ -2,7 +2,7 @@
 // Node.js 18+ includes native fetch.
 
 exports.handler = async (event, context) => {
-  const steamUrl = 'https://store.steampowered.com/api/featuredcategories?l=english';
+  const steamUrl = 'https://store.steampowered.com/api/featuredcategories?l=english&cc=us';
   const CHEAPSHARK_BASE_URL = 'https://www.cheapshark.com/api/1.0';
 
   try {
@@ -25,7 +25,9 @@ exports.handler = async (event, context) => {
     categories.forEach(cat => {
       if (steamData[cat] && steamData[cat].items) {
         steamData[cat].items.forEach(item => {
-          if (!seenAppIDs.has(item.id)) {
+          // Type 0 is for individual apps (games). Filter out bundles/packages (type 1, 2, etc.) 
+          // to ensure detail page and CheapShark mapping work correctly.
+          if (item.type === 0 && !seenAppIDs.has(item.id)) {
             seenAppIDs.add(item.id);
             candidateAppIDs.push(item.id);
           }
@@ -35,12 +37,11 @@ exports.handler = async (event, context) => {
 
     console.log(`Found ${candidateAppIDs.length} candidate AppIDs. Mapping to CheapShark...`);
 
-    // 2. Map to CheapShark deals (Server-to-Server, no CORS issues)
-    const validDeals = [];
+    // 2. Map to CheapShark deals with strict filtering
+    const finalItems = [];
     const seenGameIDs = new Set();
-    const BATCH_SIZE = 8;
+    const BATCH_SIZE = 8; // Faster batching
 
-    // We only need 10 unique games
     for (let i = 0; i < candidateAppIDs.length; i += BATCH_SIZE) {
       const batch = candidateAppIDs.slice(i, i + BATCH_SIZE);
       
@@ -48,32 +49,32 @@ exports.handler = async (event, context) => {
         try {
           const csUrl = `${CHEAPSHARK_BASE_URL}/deals?steamAppID=${appID}&pageSize=1`;
           const csRes = await fetch(csUrl);
-          if (!csRes.ok) return null;
-          
-          const deals = await csRes.json();
-          if (deals && deals.length > 0) {
-            const deal = deals[0];
-            // Strict de-duplication by CheapShark gameID
-            if (!seenGameIDs.has(deal.gameID)) {
-              seenGameIDs.add(deal.gameID);
-              // Add rank for the UI (1st encountered in candidates = rank 1)
-              return deal;
+          if (csRes.ok) {
+            const deals = await csRes.json();
+            if (deals && deals.length > 0) {
+              const deal = deals[0];
+              // De-duplicate and ensure it's a valid deal object
+              if (!seenGameIDs.has(deal.gameID)) {
+                seenGameIDs.add(deal.gameID);
+                return deal;
+              }
             }
           }
-          return null;
         } catch (err) {
-          return null;
+          console.error(`CheapShark fetch failed for ${appID}:`, err);
         }
+        return null;
       }));
 
       const filtered = batchResults.filter(d => d !== null);
-      validDeals.push(...filtered);
+      finalItems.push(...filtered);
 
-      if (validDeals.length >= 10) break;
+      // Stop once we have 10 genuine game deals
+      if (finalItems.length >= 10) break;
     }
 
-    // Assign final ranks based on discovery order
-    const finalDeals = validDeals.slice(0, 10).map((deal, index) => ({
+    // Assign final ranks
+    const finalDeals = finalItems.slice(0, 10).map((deal, index) => ({
         ...deal,
         rank: index + 1
     }));

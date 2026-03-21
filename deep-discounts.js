@@ -14,7 +14,7 @@ function createGameCardHTML(deal) {
     return `
         <article class="game-card" style="cursor: pointer;" onclick="window.location.href='game-detail.html?id=${deal.gameID}&dealID=${deal.dealID}'">
             <div class="card-image-wrap">
-                <div class="badge-discount" style="background-color: #ef4444;">-${discount}%</div>
+                ${discount > 0 ? `<div class="badge-discount" style="background-color: #ef4444;">-${discount}%</div>` : ''}
                 <div class="badge-platform">${storeName}</div>
                 <img src="${thumbUrl}" alt="${deal.title} cover" style="width: 100%; height: 100%; object-fit: cover;">
             </div>

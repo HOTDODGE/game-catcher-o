@@ -106,17 +106,17 @@ export function removeFromWishlist(gameId) {
 /**
  * 로그인 시 백엔드 데이터와 병합
  */
-window.addEventListener('backendSynced', (event) => {
-    const { wishlist } = event.detail;
-    if (!wishlist) return;
+window.addEventListener('backendSynced', async (event) => {
+    const { wishlist: remoteWishlist } = event.detail;
+    if (!remoteWishlist) return;
 
     let localList = getWishlist();
+    let hasLocalOnlyItems = false;
     
-    // 백엔드 데이터를 기준으로 로컬 업데이트 (백엔드 데이터 신뢰)
-    // 실제로는 정교한 병합 로직(Timestamp 비교 등)이 필요할 수 있으나, 여기서는 백엔드 덮어쓰기/추가 형식 사용
+    // 1. 병합 로직: 로컬에만 있는 아이템이 있는지 확인
     const merged = [...localList];
     
-    wishlist.forEach(remoteItem => {
+    remoteWishlist.forEach(remoteItem => {
         const index = merged.findIndex(i => String(i.gameID) === String(remoteItem.game_id));
         const formattedItem = {
             gameID: String(remoteItem.game_id),
@@ -127,13 +127,37 @@ window.addEventListener('backendSynced', (event) => {
         };
 
         if (index > -1) {
+            // 이미 있으면 서버 데이터로 업데이트 (서버 우선)
             merged[index] = formattedItem;
         } else {
+            // 서버에만 있는 데이터면 추가
             merged.push(formattedItem);
         }
     });
 
+    // 2. 로컬에만 있던 아이템이 있는지 체크 (병합된 결과의 개수가 서버 데이터보다 많으면 로컬 데이터가 있었던 것)
+    if (merged.length > remoteWishlist.length) {
+        hasLocalOnlyItems = true;
+    }
+
+    // 3. 로컬 저장소 업데이트
     localStorage.setItem(WISHLIST_KEY, JSON.stringify(merged));
     window.dispatchEvent(new CustomEvent('wishlistUpdated', { detail: { action: 'merge' } }));
-    console.log("[Wishlist] Merged with backend data.");
+    console.log("[Wishlist] Merged with backend data. Local items found:", hasLocalOnlyItems);
+
+    // 4. 로컬에만 있던 아이템이 있다면 서버로 전체 리스트 전송 (양방향 동기화)
+    if (hasLocalOnlyItems) {
+        const idToken = localStorage.getItem('google_id_token');
+        if (idToken) {
+            console.log("[Wishlist] Pushing local items to backend for full sync...");
+            fetch('/.netlify/functions/supabase-sync', {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'SYNC_WISHLIST',
+                    idToken: idToken,
+                    payload: { items: merged }
+                })
+            }).catch(err => console.error("[Wishlist] Initial sync push failed:", err));
+        }
+    }
 });

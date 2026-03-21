@@ -1,0 +1,22 @@
+# Local Netlify folder
+.netlify
+
+# Environment Variables (Security)
+.env
+
+# Dependencies
+node_modules/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Temporary & Test Files
+temp_game.json
+test_*.js
+*.log
+
+# Project Documentation (Optional to ignore if you want to keep GitHub clean)
+# conversation_history.md
+# launch_considerations.md
+# data-storage-info.md

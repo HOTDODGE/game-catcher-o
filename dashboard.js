@@ -50,7 +50,7 @@ function createGameCardHTML(deal) {
     return `
         <article class="game-card" style="cursor: pointer; position: relative;" onclick="window.location.href='game-detail.html?id=${deal.gameID}&dealID=${deal.dealID}'">
             <div class="card-image-wrap">
-                <div class="badge-discount">-${discount}%</div>
+                ${discount > 0 ? `<div class="badge-discount">-${discount}%</div>` : ''}
                 <div class="badge-platform">${storeName}</div>
                 <img src="${thumbUrl}" alt="${displayedTitle} cover" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultThumbnail}'" loading="lazy">
             </div>
@@ -109,7 +109,7 @@ function showLoadingState() {
                 </div>
             </div>
         </div>
-    `.repeat(3);
+    `.repeat(4);
 
     if (historicLowsContainer) historicLowsContainer.innerHTML = skeletonHTML;
     if (popularDealsContainer) popularDealsContainer.innerHTML = skeletonHTML;
@@ -135,8 +135,8 @@ async function loadDealsForPlatform(platform) {
 
     const storeID = PLATFORM_STORE_MAP[platform] ?? null;
 
-    const baseHL  = { sortBy: 'Savings',     onSale: 1, pageSize: 3 };
-    const basePop = { sortBy: 'Deal Rating',  onSale: 1, pageSize: 3 };
+    const baseHL  = { sortBy: 'Savings',     onSale: 1, pageSize: 4 };
+    const basePop = { sortBy: 'Deal Rating',  onSale: 1, pageSize: 4 };
 
     if (storeID !== null) {
         baseHL.storeID  = storeID;

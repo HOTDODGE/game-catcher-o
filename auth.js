@@ -146,10 +146,31 @@ window.initGoogleLogin = () => {
  * 페이지 로드 시 초기화 시도
  */
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. 기존 세션이 있다면 즉시 UI 반영 (구글 스크립트 대기 없이 레이아웃 안정화)
+    // 1. 기존 세션이 있다면 즉시 UI 반영
     const savedUser = localStorage.getItem('user');
+    const idToken = localStorage.getItem('google_id_token');
+
     if (savedUser) {
         updateAuthUI(JSON.parse(savedUser));
+        
+        // [추가] 이미 로그인된 경우, 페이지 로드 시 최신 위시리스트를 서버에서 가져옴
+        if (idToken) {
+            console.log("[Auth] Session found, refreshing backend data...");
+            fetch('/.netlify/functions/supabase-sync', {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'LOGIN',
+                    idToken: idToken
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.wishlist) {
+                    window.dispatchEvent(new CustomEvent('backendSynced', { detail: data }));
+                }
+            })
+            .catch(err => console.error("[Auth] Background sync failed:", err));
+        }
     }
 
     // 2. 이미 구글 스크립트가 로드되었다면 즉시 초기화

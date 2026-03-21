@@ -70,6 +70,23 @@ async function stableFetch(targetUrl, options = {}, internalProxy = null, useWra
  * @returns {Promise<Object>} Object containing deals array and totalPages
  */
 export async function fetchDeals(params = {}) {
+    const USE_MOCK_DATA = false; // 개발 모드 비활성화
+    
+    if (USE_MOCK_DATA) {
+        console.log("Mock API Mode: fetchDeals 통신을 생략하고 8개의 모의 게임 데이터를 반환합니다.");
+        const mockDeals = [
+            { dealID: 'm1', gameID: 'mg1', title: 'Cyberpunk 2077 (Mock)', storeID: '1', salePrice: '29.99', normalPrice: '59.99', savings: '50', steamRatingPercent: '85', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg' },
+            { dealID: 'm2', gameID: 'mg2', title: 'Elden Ring (Mock)', storeID: '1', salePrice: '41.99', normalPrice: '59.99', savings: '30', steamRatingPercent: '92', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg' },
+            { dealID: 'm3', gameID: 'mg3', title: 'Helldivers 2 (Mock)', storeID: '1', salePrice: '39.99', normalPrice: '39.99', savings: '0', steamRatingPercent: '88', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2054970/header.jpg' },
+            { dealID: 'm4', gameID: 'mg4', title: 'The Witcher 3 (Mock)', storeID: '1', salePrice: '9.99', normalPrice: '39.99', savings: '75', steamRatingPercent: '97', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/292030/header.jpg' },
+            { dealID: 'm5', gameID: 'mg5', title: 'Red Dead Redemption 2 (Mock)', storeID: '1', salePrice: '19.79', normalPrice: '59.99', savings: '67', steamRatingPercent: '91', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1174180/header.jpg' },
+            { dealID: 'm6', gameID: 'mg6', title: 'Persona 5 Royal (Mock)', storeID: '1', salePrice: '23.99', normalPrice: '59.99', savings: '60', steamRatingPercent: '97', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1687950/header.jpg' },
+            { dealID: 'm7', gameID: 'mg7', title: 'Baldur\'s Gate 3 (Mock)', storeID: '1', salePrice: '53.99', normalPrice: '59.99', savings: '10', steamRatingPercent: '96', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1086940/header.jpg' },
+            { dealID: 'm8', gameID: 'mg8', title: 'Factorio (Mock)', storeID: '1', salePrice: '35.00', normalPrice: '35.00', savings: '0', steamRatingPercent: '98', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/427520/header.jpg' }
+        ];
+        return { deals: mockDeals, totalPages: 1 };
+    }
+
     try {
         const query = new URLSearchParams(params).toString();
         const targetUrl = `${BASE_URL}/deals?${query}`;
@@ -358,10 +375,30 @@ export async function setPriceAlert({ action = 'set', email, gameID, price }) {
  * @returns {Promise<Array>} Array of deal objects
  */
 export async function fetchTopSellers() {
+    // [개발 모드] 외부 API 차단(Rate Limit)을 피하기 위한 초고속 모의 데이터 (Mock API)
+    // 브라우저 주소가 localhost(개발용) 일 때만 10개의 가짜 데이터를 즉시 반환합니다.
+    const USE_MOCK_DATA = false;
+    
+    if (USE_MOCK_DATA) {
+        console.log("Mock API Mode: 외부 서버 통신을 생략하고 10개의 가짜 Top Seller 데이터를 반환합니다.");
+        return [
+            { dealID: 'mock1', gameID: 'mock_1', title: 'Crimson Desert (Mock)', storeID: '1', salePrice: '105.06', normalPrice: '105.06', savings: '0', steamRatingPercent: '73', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2835840/header.jpg', rank: 1 },
+            { dealID: 'mock2', gameID: 'mock_2', title: 'Slay the Spire 2 (Mock)', storeID: '1', salePrice: '37.51', normalPrice: '37.51', savings: '0', steamRatingPercent: '95', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2868840/header.jpg', rank: 2 },
+            { dealID: 'mock3', gameID: 'mock_3', title: 'Ready or Not (Mock)', storeID: '1', salePrice: '33.33', normalPrice: '75.04', savings: '56', steamRatingPercent: '75', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1144200/header.jpg', rank: 3 },
+            { dealID: 'mock4', gameID: 'mock_4', title: 'DEATH STRANDING 2 (Mock)', storeID: '1', salePrice: '94.55', normalPrice: '105.06', savings: '10', steamRatingPercent: '94', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1850570/header.jpg', rank: 4 },
+            { dealID: 'mock5', gameID: 'mock_5', title: 'Inky Blinky Bob (Mock)', storeID: '1', salePrice: '19.12', normalPrice: '22.50', savings: '15', steamRatingPercent: '0', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2639010/header.jpg', rank: 5 },
+            { dealID: 'mock6', gameID: 'mock_6', title: 'Poke ALL Toads (Mock)', storeID: '1', salePrice: '16.03', normalPrice: '17.99', savings: '17', steamRatingPercent: '100', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2635950/header.jpg', rank: 6 },
+            { dealID: 'mock7', gameID: 'mock_7', title: 'Cyberpunk 2077 (Mock)', storeID: '1', salePrice: '29.99', normalPrice: '59.99', savings: '50', steamRatingPercent: '85', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg', rank: 7 },
+            { dealID: 'mock8', gameID: 'mock_8', title: 'Helldivers 2 (Mock)', storeID: '1', salePrice: '39.99', normalPrice: '39.99', savings: '0', steamRatingPercent: '88', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2054970/header.jpg', rank: 8 },
+            { dealID: 'mock9', gameID: 'mock_9', title: 'Palworld (Mock)', storeID: '1', salePrice: '26.99', normalPrice: '29.99', savings: '10', steamRatingPercent: '93', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1623730/header.jpg', rank: 9 },
+            { dealID: 'mock10', gameID: 'mock_10', title: 'Stardew Valley (Mock)', storeID: '1', salePrice: '7.49', normalPrice: '14.99', savings: '50', steamRatingPercent: '98', thumb: 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/413150/header.jpg', rank: 10 }
+        ];
+    }
+
     // 0. Check cache first (5-minute expiry)
     const CACHE_KEY = 'top_sellers_cache';
     const CACHE_TIME_KEY = 'top_sellers_cache_time';
-    const CACHE_VERSION = 'v1.3'; // Bump this to force refresh after mapping fix
+    const CACHE_VERSION = 'v1.7'; // Bump this to force refresh after local fallback fix
     const cacheKey = `top_sellers_cache_${CACHE_VERSION}`;
     const cachedData = localStorage.getItem(cacheKey);
     if (cachedData) {
@@ -377,7 +414,7 @@ export async function fetchTopSellers() {
     }
 
     try {
-        const steamApiUrl = 'https://store.steampowered.com/api/featuredcategories?l=english';
+        const steamApiUrl = 'https://store.steampowered.com/api/featuredcategories?l=english&cc=us';
         const internalProxy = '/.netlify/functions/steam-top-sellers';
         
         let items = [];
@@ -412,7 +449,8 @@ export async function fetchTopSellers() {
             ['top_sellers', 'new_releases', 'specials', 'coming_soon'].forEach(cat => {
                 if (data[cat] && data[cat].items) {
                     data[cat].items.forEach(item => {
-                        if (!seenIDs.has(item.id)) {
+                        // type 0 = App (Game)
+                        if (item.type === 0 && !seenIDs.has(item.id)) {
                             seenIDs.add(item.id);
                             combinedIDs.push(item.id);
                         }
@@ -422,59 +460,63 @@ export async function fetchTopSellers() {
 
             const validDeals = [];
             const seenGameIDs = new Set();
-            const BATCH_SIZE = 4;
+            const BATCH_SIZE = 2; // Reduce batch size for local fallback to avoid 429
+            
+            // Helper map for Steam Fallback Data
+            const steamItemMap = {};
+            ['top_sellers', 'new_releases', 'specials', 'coming_soon'].forEach(cat => {
+                if (data[cat] && data[cat].items) {
+                    data[cat].items.forEach(item => {
+                        steamItemMap[item.id] = item;
+                    });
+                }
+            });
 
             for (let i = 0; i < combinedIDs.length; i += BATCH_SIZE) {
                 const batch = combinedIDs.slice(i, i + BATCH_SIZE);
                 const batchResults = await Promise.all(batch.map(async (appID) => {
-                    const rawItem = [].concat(...Object.values(data).map(c => c.items || [])).find(i => i.id === appID);
-                    if (!rawItem) return null;
-
+                    const steamItem = steamItemMap[appID];
                     try {
                         const { deals } = await fetchDeals({ steamAppID: appID, pageSize: 1, sortBy: 'Price' });
                         if (deals.length > 0) {
                             const deal = deals[0];
-                            const clean = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-                            const sTitle = clean(rawItem.name || '');
-                            const dTitle = clean(deal.title || '');
-                            
-                            // To be valid, one must contain a significant part of the other
-                            const isMatch = (sTitle && dTitle) && (sTitle.includes(dTitle) || dTitle.includes(sTitle));
-                            
-                            if (isMatch) {
-                                if (!seenGameIDs.has(deal.gameID)) {
-                                    seenGameIDs.add(deal.gameID);
-                                    return deal;
-                                }
-                            } else {
-                                console.warn(`[Top Sellers] Mismatch for ID ${appID}: Steam Title "${rawItem.name}" vs CheapShark Title "${deal.title}"`);
+                            if (!seenGameIDs.has(deal.gameID)) {
+                                seenGameIDs.add(deal.gameID);
+                                return deal;
                             }
                         }
-                    } catch (err) {}
+                    } catch (err) {
+                        console.warn(`Local fallback fetch failed for ${appID}:`, err.message);
+                    }
                     
-                    // Fallback for this specific item: Use raw Steam data if CheapShark failed or mismatched
-                    return {
-                        title: rawItem.name || `Steam Game #${appID}`,
-                        gameID: `steam_${appID}`,
-                        salePrice: rawItem.final_price ? (rawItem.final_price / 100).toString() : '0',
-                        normalPrice: rawItem.original_price ? (rawItem.original_price / 100).toString() : '0',
-                        savings: (rawItem.discount_percent || 0).toString(),
-                        thumb: rawItem.large_capsule_image || rawItem.small_capsule_image || '',
-                        external: `https://store.steampowered.com/app/${appID}`
-                    };
+                    // --- Fallback: Use Steam Data if CheapShark fails or has no deal ---
+                    if (steamItem) {
+                        const gameID = `steam_${appID}`;
+                        if (!seenGameIDs.has(gameID)) {
+                            seenGameIDs.add(gameID);
+                            return {
+                                title: steamItem.name,
+                                gameID: gameID,
+                                dealID: '', 
+                                storeID: '1', // Steam
+                                salePrice: steamItem.final_price ? ((steamItem.final_price / 100).toFixed(2)).toString() : '0.00',
+                                normalPrice: steamItem.original_price ? ((steamItem.original_price / 100).toFixed(2)).toString() : '0.00',
+                                savings: (steamItem.discount_percent || 0).toString(),
+                                thumb: steamItem.large_capsule_image || steamItem.small_capsule_image || '',
+                                steamRatingPercent: '0', 
+                                isFallback: true
+                            };
+                        }
+                    }
+                    return null;
                 }));
 
                 validDeals.push(...batchResults.filter(d => d !== null));
-                if (validDeals.length >= 10) break; 
+                if (validDeals.length >= 10) break;
+                
+                // Add a small delay between batches to respect CheapShark rate limits locally
+                await new Promise(resolve => setTimeout(resolve, 300));
             }
-
-            // Ensure savings is calculated if discount_percent is 0 but price is lower (Last resort fix)
-            validDeals.forEach(deal => {
-                if (deal.savings === '0' && parseFloat(deal.salePrice) < parseFloat(deal.normalPrice)) {
-                    const diff = parseFloat(deal.normalPrice) - parseFloat(deal.salePrice);
-                    deal.savings = Math.round((diff / parseFloat(deal.normalPrice)) * 100).toString();
-                }
-            });
 
             items = validDeals.slice(0, 10).map((deal, idx) => ({ ...deal, rank: idx + 1 }));
         }
