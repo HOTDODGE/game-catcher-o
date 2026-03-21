@@ -398,7 +398,7 @@ export async function fetchTopSellers() {
     // 0. Check cache first (5-minute expiry)
     const CACHE_KEY = 'top_sellers_cache';
     const CACHE_TIME_KEY = 'top_sellers_cache_time';
-    const CACHE_VERSION = 'v1.7'; // Bump this to force refresh after local fallback fix
+    const CACHE_VERSION = 'v1.8'; // Force refresh to use optimized backend data
     const cacheKey = `top_sellers_cache_${CACHE_VERSION}`;
     const cachedData = localStorage.getItem(cacheKey);
     if (cachedData) {
