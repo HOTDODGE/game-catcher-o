@@ -1,4 +1,4 @@
-import { fetchDeals, fetchStores, sanitizeHTML, extractSteamAppIDFromThumb } from './api.js';
+import { fetchDeals, fetchStores, sanitizeHTML, extractSteamAppIDFromThumb, Currency } from './api.js';
 import { isInWishlist, toggleWishlist } from './wishlist-manager.js';
 
 const allGamesList = document.getElementById('allGamesList');
@@ -27,8 +27,8 @@ function createGameCardHTML(deal) {
     const isHistoricLow = discount > 80; 
     const hlBadgeHTML = isHistoricLow ? `<span class="list-badge-hl-label">HL</span>` : '';
     
-    const salePrice = `$${Number(deal.salePrice).toFixed(2)}`;
-    const normalPrice = `$${Number(deal.normalPrice).toFixed(2)}`;
+    const salePrice = Currency.formatPriceSync(deal.salePrice);
+    const normalPrice = Currency.formatPriceSync(deal.normalPrice);
 
     // 🔥 Correction: If title is "-" or empty, try extracting from thumb or display placeholder
     let displayedTitle = deal.title;
@@ -60,9 +60,9 @@ function createGameCardHTML(deal) {
                     </div>
                     <div class="price-container">
                         ${discount > 0 ? `<span class="list-view-discount" style="display:none; color: var(--success-color); font-weight: bold; font-size: 0.8rem; line-height: 1;">-${discount}%</span>` : ''}
-                        <span class="price-original">${normalPrice}</span>
+                        <span class="price-original" data-price="${deal.normalPrice}">${normalPrice}</span>
                         <div class="flex items-center gap-2">
-                            <span class="price-discount">${salePrice}</span>
+                            <span class="price-discount" data-price="${deal.salePrice}">${salePrice}</span>
                         </div>
                     </div>
                 </div>
@@ -290,6 +290,21 @@ function setupFilters() {
     });
 }
 
+/**
+ * Async function to refresh all displayed prices once currency data is loaded.
+ */
+async function refreshPrices() {
+    await Currency.getExchangeRates();
+    await Currency.getUserInfo();
+    
+    document.querySelectorAll('[data-price]').forEach(async (el) => {
+        const usdPrice = el.getAttribute('data-price');
+        if (usdPrice) {
+            el.textContent = await Currency.formatPrice(usdPrice);
+        }
+    });
+}
+
 async function initAllGames() {
     const storesArray = await fetchStores();
     storesArray.forEach(s => {
@@ -319,11 +334,12 @@ async function initAllGames() {
         const priceLabel = document.getElementById('priceSliderLabel');
         if (priceSlider && priceLabel) {
             priceSlider.value = 100000;
-            priceLabel.textContent = '제한 없음';
+            priceLabel.textContent = (document.documentElement.lang === 'en' ? 'No Limit' : '제한 없음');
         }
     }
 
     await loadGamesWrapper();
+    refreshPrices(); // Start async price update
 
     // Global Wishlist Toggle Handler (Synced with dashboard.js)
     window.handleWishlistToggle = function(event, gameID, dealID, title, thumb) {

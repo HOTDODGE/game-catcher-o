@@ -33,7 +33,13 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const data = await response.json();
+    const contentType = response.headers.get('Content-Type') || '';
+    let body;
+    if (contentType.includes('application/json')) {
+      body = JSON.stringify(await response.json());
+    } else {
+      body = await response.text();
+    }
     
     // We must forward important headers like X-Total-Page-Count for pagination
     const totalPages = response.headers.get('X-Total-Page-Count');
@@ -42,10 +48,10 @@ exports.handler = async (event, context) => {
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json',
+        'Content-Type': contentType || 'text/plain',
         'X-Total-Page-Count': totalPages || '1'
       },
-      body: JSON.stringify(data),
+      body: body,
     };
   } catch (error) {
     console.error('CheapShark Proxy Error:', error);

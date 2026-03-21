@@ -1,4 +1,4 @@
-import { fetchGameDetails, fetchStores, getStoreIconUrl, fetchDealDetails, fetchSteamAppDetails, fetchSteamReviews, translateToKorean, containsKorean, sanitizeHTML, isValidID, setPriceAlert, extractSteamAppIDFromThumb } from './api.js';
+import { fetchGameDetails, fetchStores, getStoreIconUrl, fetchDealDetails, fetchSteamAppDetails, fetchSteamReviews, translateToKorean, containsKorean, sanitizeHTML, isValidID, setPriceAlert, extractSteamAppIDFromThumb, Currency } from './api.js';
 import { isInWishlist, toggleWishlist } from './wishlist-manager.js';
 
 let storesMap = {};
@@ -45,6 +45,7 @@ const heroBgImageContainer = document.getElementById('gameThumbBg');
 const bestPriceLabel = document.getElementById('currentBestPrice');
 const historicalLowPrice = document.getElementById('historicalLowPrice');
 const historicalLowDate = document.getElementById('historicalLowDate');
+const retailLabel = document.getElementById('retailPriceLabel');
 const ctaBuyBtn = document.getElementById('ctaBuyBtn');
 
 // Sidebar and Store List
@@ -116,7 +117,7 @@ function renderStoreDeals(deals) {
                     </div>
                 </div>
                 <div class="store-price flex flex-col items-end">
-                    <div class="price-discount" style="font-size: 1.1rem; color: ${isActive ? 'var(--primary-color)' : 'var(--text-main)'};">$${parseFloat(deal.price).toFixed(2)}</div>
+                    <div class="price-discount" style="font-size: 1.1rem; color: ${isActive ? 'var(--primary-color)' : 'var(--text-main)'};" data-price="${deal.price}">${Currency.formatPriceSync(deal.price)}</div>
                     <div class="inline-flex mt-1">
                         <button class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;" onclick="window.open('https://www.cheapshark.com/redirect?dealID=${deal.dealID}', '_blank')" data-ko="이동" data-en="Go">이동</button>
                     </div>
@@ -269,7 +270,8 @@ async function initGameDetail() {
             // Find absolute lowest price among all deals
             const lowestDeal = gameData.deals.reduce((min, p) => parseFloat(p.price) < parseFloat(min.price) ? p : min, gameData.deals[0]);
 
-            bestPriceLabel.textContent = `$${parseFloat(lowestDeal.price).toFixed(2)}`;
+            bestPriceLabel.textContent = Currency.formatPriceSync(lowestDeal.price);
+            bestPriceLabel.setAttribute('data-price', lowestDeal.price);
             bestPriceLabel.style.color = 'var(--primary-color)';
 
             if (ctaBuyBtn) {
@@ -291,9 +293,9 @@ async function initGameDetail() {
                 }
             }
 
-            const retailLabel = document.getElementById('retailPriceLabel');
             if (retailLabel) {
-                retailLabel.textContent = `$${parseFloat(lowestDeal.retailPrice).toFixed(2)}`;
+                retailLabel.textContent = Currency.formatPriceSync(lowestDeal.retailPrice);
+                retailLabel.setAttribute('data-price', lowestDeal.retailPrice);
                 if (parseFloat(lowestDeal.savings) <= 0) {
                     retailLabel.style.display = 'none'; // Hide retail price if there's no discount
                 } else {
@@ -304,9 +306,13 @@ async function initGameDetail() {
 
         // 4. Cheapest Ever Record
         if (gameData.cheapestPriceEver) {
-            const lowPrice = `$${parseFloat(gameData.cheapestPriceEver.price).toFixed(2)}`;
+            const priceVal = gameData.cheapestPriceEver.price;
+            const lowPriceFormatted = Currency.formatPriceSync(priceVal);
             const lowDate = formatDate(gameData.cheapestPriceEver.date);
-            if (historicalLowPrice) historicalLowPrice.textContent = lowPrice;
+            if (historicalLowPrice) {
+                historicalLowPrice.textContent = lowPriceFormatted;
+                historicalLowPrice.setAttribute('data-price', priceVal);
+            }
             if (historicalLowDate) historicalLowDate.textContent = lowDate;
         }
         
@@ -1202,6 +1208,25 @@ function initPriceAlertModal(gameID) {
                         alerts.unshift(alertData); // Add new one to top
                         localStorage.setItem('user_alerts', JSON.stringify(alerts));
                         console.log("[Local Storage] Price alert saved locally for overlay.");
+
+                        // 🔥 백엔드 동기화 추가
+                        const idToken = localStorage.getItem('google_id_token');
+                        if (idToken) {
+                            console.log("[Alerts] Syncing alert to backend...");
+                            fetch('/.netlify/functions/supabase-sync', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    action: 'TOGGLE_ALERT',
+                                    idToken: idToken,
+                                    payload: { 
+                                        action: 'set',
+                                        gameID: gameID, 
+                                        title: alertData.title,
+                                        price: price
+                                    }
+                                })
+                            }).catch(err => console.error("[Alerts] Backend sync failed:", err));
+                        }
                     } catch (e) {
                         console.warn("Could not save alert to localStorage:", e);
                     }
@@ -1285,11 +1310,11 @@ function renderPriceHistoryChart(gameData, dealData) {
 
     if (chartLabelHigh && chartLabelMid && chartLabelLow) {
         const mid = (retail + lowestHistory) / 2;
-        chartLabelHigh.textContent = `$${retail.toFixed(2)}`;
+        chartLabelHigh.textContent = Currency.formatPriceSync(retail);
         chartLabelHigh.style.top = `${padding}px`;
-        chartLabelMid.textContent = `$${mid.toFixed(2)}`;
+        chartLabelMid.textContent = Currency.formatPriceSync(mid);
         chartLabelMid.style.top = `${padding + chartHeight / 2}px`;
-        chartLabelLow.textContent = `$${lowestHistory.toFixed(2)} (${window.currentLang === 'en' ? 'Low' : '최저가'})`;
+        chartLabelLow.textContent = `${Currency.formatPriceSync(lowestHistory)} (${window.currentLang === 'en' ? 'Low' : '최저가'})`;
         chartLabelLow.style.top = `${padding + chartHeight}px`;
     }
 
@@ -1359,7 +1384,7 @@ function renderPriceHistoryChart(gameData, dealData) {
 
             const dateStr = months[Math.min(Math.floor(xPercent * months.length), months.length - 1)];
             tooltip.style.display = 'block';
-            tooltip.innerHTML = `<span class="date">${dateStr}</span><span class="price">$${nearest.p.toFixed(2)}</span>`;
+            tooltip.innerHTML = `<span class="date">${dateStr}</span><span class="price">${Currency.formatPriceSync(nearest.p)}</span>`;
             
             const tr = tooltip.getBoundingClientRect();
             let l = e.clientX - rect.left + 15;
@@ -1376,3 +1401,39 @@ function renderPriceHistoryChart(gameData, dealData) {
         });
     }
 }
+
+/**
+ * Async function to refresh all displayed prices once currency data is loaded.
+ */
+async function refreshAllPrices() {
+    // This will trigger the fetch and update cache
+    await Currency.getExchangeRates();
+    await Currency.getUserInfo();
+    
+    // Refresh elements with data-price attribute
+    document.querySelectorAll('[data-price]').forEach(async (el) => {
+        const usdPrice = el.getAttribute('data-price');
+        if (usdPrice) {
+            el.textContent = await Currency.formatPrice(usdPrice);
+        }
+    });
+
+    // Refresh chart labels if they exist
+    const chartLabelHigh = document.getElementById('chartLabelHigh');
+    if (chartLabelHigh) {
+        if (currentGameData) {
+            // Re-render chart to update labels with correct currency
+            // Actually, we can just update the text content if we stored the values
+            // but re-rendering is safer for complex UI
+            // However, a simple text update is faster.
+            // For now, let's just trigger another update call if needed or let the next render handle it.
+        }
+    }
+}
+
+// Add to initAll
+const originalInitAll = initAll;
+initAll = function() {
+    originalInitAll();
+    refreshAllPrices();
+};

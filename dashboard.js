@@ -1,4 +1,4 @@
-import { fetchDeals, fetchStores, getStoreIconUrl, sanitizeHTML, searchGames, extractSteamAppIDFromThumb, fetchTopSellers } from './api.js';
+import { fetchDeals, fetchStores, getStoreIconUrl, sanitizeHTML, searchGames, extractSteamAppIDFromThumb, fetchTopSellers, Currency } from './api.js';
 import { isInWishlist, toggleWishlist } from './wishlist-manager.js';
 
 // Elements
@@ -37,8 +37,8 @@ function createGameCardHTML(deal) {
         ? `<span class="list-badge-hl-label" style="font-size:0.7rem; padding: 2px 4px; border: 1px solid var(--success-color); border-radius:3px; color: var(--success-color); margin-right:4px;">HL</span>`
         : '';
     
-    const salePrice   = `$${Number(deal.salePrice).toFixed(2)}`;
-    const normalPrice = `$${Number(deal.normalPrice).toFixed(2)}`;
+    const salePrice   = Currency.formatPriceSync(deal.salePrice);
+    const normalPrice = Currency.formatPriceSync(deal.normalPrice);
 
     // 🔥 Correction: If title is "-" or empty, try extracting from thumb or display placeholder
     let displayedTitle = deal.title;
@@ -68,9 +68,9 @@ function createGameCardHTML(deal) {
                         </button>
                     </div>
                     <div class="price-container">
-                        <span class="price-original">${normalPrice}</span>
+                        <span class="price-original" data-price="${deal.normalPrice}">${normalPrice}</span>
                         <div class="flex items-center">
-                            <span class="price-discount">${salePrice}</span>
+                            <span class="price-discount" data-price="${deal.salePrice}">${salePrice}</span>
                         </div>
                     </div>
                 </div>
@@ -338,13 +338,14 @@ async function initDashboard() {
             }
 
             const html = results.map(game => {
-                const price = game.cheapest ? `$${game.cheapest}` : '';
+                const price = game.cheapest ? Currency.formatPriceSync(game.cheapest) : '';
+                const usdPrice = game.cheapest || '';
                 return `
                     <div class="suggestion-item" onclick="window.location.href='game-detail.html?id=${game.gameID}'">
                         <img src="${game.thumb}" alt="${game.external}" class="suggestion-thumb" onerror="this.src='https://via.placeholder.com/60x34/1e293b/64748b?text=Game'">
                         <div class="suggestion-info">
                             <div class="suggestion-title">${game.external}</div>
-                            ${price ? `<div class="suggestion-price">${price}</div>` : ''}
+                            ${price ? `<div class="suggestion-price" data-price="${usdPrice}">${price}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -395,6 +396,23 @@ async function initDashboard() {
             svg.setAttribute('fill', 'none');
         }
     };
+
+    refreshPrices(); // Start async price update
+}
+
+/**
+ * Async function to refresh all displayed prices once currency data is loaded.
+ */
+async function refreshPrices() {
+    await Currency.getExchangeRates();
+    await Currency.getUserInfo();
+    
+    document.querySelectorAll('[data-price]').forEach(async (el) => {
+        const usdPrice = el.getAttribute('data-price');
+        if (usdPrice) {
+            el.textContent = await Currency.formatPrice(usdPrice);
+        }
+    });
 }
 
 // Start immediately

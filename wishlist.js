@@ -1,4 +1,4 @@
-import { fetchStores, sanitizeHTML, fetchGameDetails } from './api.js';
+import { fetchStores, sanitizeHTML, fetchGameDetails, Currency } from './api.js';
 import { getWishlist, toggleWishlist } from './wishlist-manager.js';
 
 const wishlistGrid = document.getElementById('wishlistGrid');
@@ -11,7 +11,8 @@ let storesMap = {};
  */
 function createWishlistCardHTML(game, freshData = null) {
     const deal = freshData ? freshData.deals[0] : null;
-    const salePrice = deal ? `$${parseFloat(deal.price).toFixed(2)}` : 'Check Price';
+    const salePrice = deal ? Currency.formatPriceSync(deal.price) : 'Check Price';
+    const usdPrice = deal ? deal.price : '';
     const store = deal ? storesMap[deal.storeID] : null;
     const storeName = store ? store.storeName : '';
     
@@ -35,7 +36,7 @@ function createWishlistCardHTML(game, freshData = null) {
                         </button>
                     </div>
                     <div class="price-container">
-                        <span class="price-discount">${salePrice}</span>
+                        <span class="price-discount" ${usdPrice ? `data-price="${usdPrice}"` : ''}>${salePrice}</span>
                     </div>
                 </div>
             </div>
@@ -91,6 +92,23 @@ async function initWishlist() {
     
     // Sync if updated from other tabs/modals
     window.addEventListener('wishlistUpdated', renderWishlist);
+
+    refreshPrices(); // Start async price update
+}
+
+/**
+ * Async function to refresh all displayed prices once currency data is loaded.
+ */
+async function refreshPrices() {
+    await Currency.getExchangeRates();
+    await Currency.getUserInfo();
+    
+    document.querySelectorAll('[data-price]').forEach(async (el) => {
+        const usdPrice = el.getAttribute('data-price');
+        if (usdPrice) {
+            el.textContent = await Currency.formatPrice(usdPrice);
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', initWishlist);

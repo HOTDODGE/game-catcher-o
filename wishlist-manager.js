@@ -63,6 +63,26 @@ export function toggleWishlist(gameData) {
         window.dispatchEvent(new CustomEvent('wishlistUpdated', { 
             detail: { gameID: gameData.gameID, added } 
         }));
+
+        // 🔥 백엔드 동기화 추가
+        const idToken = localStorage.getItem('google_id_token');
+        if (idToken) {
+            console.log("[Wishlist] Syncing toggle to backend...");
+            fetch('/.netlify/functions/supabase-sync', {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'TOGGLE_WISHLIST',
+                    idToken: idToken,
+                    payload: { 
+                        gameID: gameData.gameID, 
+                        dealID: gameData.dealID,
+                        title: gameData.title,
+                        thumb: gameData.thumb,
+                        added 
+                    }
+                })
+            }).catch(err => console.error("[Wishlist] Backend toggle failed:", err));
+        }
     } catch (e) {
         console.error("Failed to save wishlist to localStorage:", e);
     }
@@ -82,3 +102,38 @@ export function removeFromWishlist(gameId) {
         detail: { gameID: gameId, added: false } 
     }));
 }
+
+/**
+ * 로그인 시 백엔드 데이터와 병합
+ */
+window.addEventListener('backendSynced', (event) => {
+    const { wishlist } = event.detail;
+    if (!wishlist) return;
+
+    let localList = getWishlist();
+    
+    // 백엔드 데이터를 기준으로 로컬 업데이트 (백엔드 데이터 신뢰)
+    // 실제로는 정교한 병합 로직(Timestamp 비교 등)이 필요할 수 있으나, 여기서는 백엔드 덮어쓰기/추가 형식 사용
+    const merged = [...localList];
+    
+    wishlist.forEach(remoteItem => {
+        const index = merged.findIndex(i => String(i.gameID) === String(remoteItem.game_id));
+        const formattedItem = {
+            gameID: String(remoteItem.game_id),
+            dealID: String(remoteItem.deal_id || ''),
+            title: remoteItem.title,
+            thumb: remoteItem.thumb,
+            addedAt: new Date(remoteItem.added_at).getTime()
+        };
+
+        if (index > -1) {
+            merged[index] = formattedItem;
+        } else {
+            merged.push(formattedItem);
+        }
+    });
+
+    localStorage.setItem(WISHLIST_KEY, JSON.stringify(merged));
+    window.dispatchEvent(new CustomEvent('wishlistUpdated', { detail: { action: 'merge' } }));
+    console.log("[Wishlist] Merged with backend data.");
+});

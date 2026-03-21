@@ -1,4 +1,4 @@
-import { fetchDeals, fetchStores, sanitizeHTML } from './api.js';
+import { fetchDeals, fetchStores, sanitizeHTML, Currency } from './api.js';
 import { isInWishlist, toggleWishlist } from './wishlist-manager.js';
 
 const grid = document.getElementById('deepDiscountsGrid');
@@ -30,8 +30,8 @@ function createGameCardHTML(deal) {
                         </button>
                     </div>
                     <div class="price-container">
-                        <span class="price-original">$${Number(deal.normalPrice).toFixed(2)}</span>
-                        <span class="price-discount">$${Number(deal.salePrice).toFixed(2)}</span>
+                        <span class="price-original" data-price="${deal.normalPrice}">${Currency.formatPriceSync(deal.normalPrice)}</span>
+                        <span class="price-discount" data-price="${deal.salePrice}">${Currency.formatPriceSync(deal.salePrice)}</span>
                     </div>
                 </div>
             </div>
@@ -57,11 +57,24 @@ async function loadDeepDiscounts() {
     grid.innerHTML = sanitizeHTML(deals.map(createGameCardHTML).join(''));
 }
 
+async function refreshPrices() {
+    const priceElements = document.querySelectorAll('[data-price]');
+    for (const el of priceElements) {
+        const usdPrice = el.dataset.price;
+        if (usdPrice) {
+            el.textContent = await Currency.formatPrice(usdPrice);
+        }
+    }
+}
+
 async function init() {
     const storesArray = await fetchStores();
     storesArray.forEach(s => { storesMap[s.storeID] = s; });
 
     await loadDeepDiscounts();
+    
+    // Refresh prices after currency data is loaded
+    refreshPrices();
 
     window.handleWishlistToggle = function(event, gameID, dealID, title, thumb) {
         event.preventDefault();

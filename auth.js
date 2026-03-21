@@ -49,17 +49,41 @@ function updateAuthUI(user) {
 /**
  * 구글 로그인 콜백
  */
-window.handleCredentialResponse = (response) => {
-    const responsePayload = decodeJwtResponse(response.credential);
+window.handleCredentialResponse = async (response) => {
+    const idToken = response.credential;
+    const responsePayload = decodeJwtResponse(idToken);
 
-    // 세션 저장
-    localStorage.setItem('user', JSON.stringify({
+    // 1. 로컬 세션 저장
+    const userData = {
         name: responsePayload.name,
         picture: responsePayload.picture,
         email: responsePayload.email
-    }));
+    };
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('google_id_token', idToken); // 백엔드 통신용
 
-    updateAuthUI(responsePayload);
+    updateAuthUI(userData);
+
+    // 2. 백엔드 동기화 (비동기)
+    try {
+        console.log("[Auth] Syncing with backend...");
+        const res = await fetch('/.netlify/functions/supabase-sync', {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'LOGIN',
+                idToken: idToken
+            })
+        });
+        const data = await res.json();
+        
+        if (data.wishlist) {
+            console.log("[Auth] Backend wishlist synced:", data.wishlist.length);
+            // 로컬 위시리스트와 병합 로직 (필요 시 wishlist-manager에 위임)
+            window.dispatchEvent(new CustomEvent('backendSynced', { detail: data }));
+        }
+    } catch (err) {
+        console.error("[Auth] Backend sync failed:", err);
+    }
 };
 
 /**
@@ -88,7 +112,7 @@ function renderGoogleButton() {
 }
 
 /**
- * 구글 로그인 시스템 초기화
+ * 구글 로그인 시스템 초기화 (전역 창 객체에 즉시 등록)
  */
 window.initGoogleLogin = () => {
     if (!window.google || !google.accounts) {

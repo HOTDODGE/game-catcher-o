@@ -112,6 +112,8 @@ async function deleteAlert(gameID) {
 
     // 2. Try to remove from API (requires email)
     const savedUser = localStorage.getItem('user');
+    const idToken = localStorage.getItem('google_id_token');
+
     if (savedUser) {
         try {
             const user = JSON.parse(savedUser);
@@ -126,6 +128,59 @@ async function deleteAlert(gameID) {
         } catch (e) { console.error("API deletion failed:", e); }
     }
 
+    // 🔥 백엔드 동기화 추가
+    if (idToken) {
+        console.log("[Alerts] Syncing deletion to backend...");
+        fetch('/.netlify/functions/supabase-sync', {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'TOGGLE_ALERT',
+                idToken: idToken,
+                payload: { 
+                    action: 'delete',
+                    gameID: gameID 
+                }
+            })
+        }).catch(err => console.error("[Alerts] Backend deletion failed:", err));
+    }
+
     // 3. Refresh List
     renderAlertsList();
 }
+
+/**
+ * 로그인 시 백엔드 알림 데이터와 병합
+ */
+window.addEventListener('backendSynced', (event) => {
+    const { notifications } = event.detail;
+    if (!notifications) return;
+
+    let localAlerts = JSON.parse(localStorage.getItem('user_alerts') || '[]');
+    
+    // 백엔드 데이터를 기준으로 로컬 업데이트
+    const merged = [...localAlerts];
+    
+    notifications.forEach(remoteAlert => {
+        const index = merged.findIndex(a => String(a.gameID) === String(remoteAlert.game_id));
+        const formattedAlert = {
+            gameID: String(remoteAlert.game_id),
+            title: remoteAlert.title,
+            thumb: remoteAlert.thumb || '', // 만약 백엔드에 thumb가 없다면 빈값
+            targetPrice: parseFloat(remoteAlert.threshold_price),
+            timestamp: new Date(remoteAlert.created_at).getTime()
+        };
+
+        if (index > -1) {
+            merged[index] = formattedAlert;
+        } else {
+            merged.push(formattedAlert);
+        }
+    });
+
+    localStorage.setItem('user_alerts', JSON.stringify(merged));
+    // UI 업데이트를 위해 리스트가 열려있다면 다시 렌더링
+    if (document.getElementById('alertsOverlayModal')?.classList.contains('active')) {
+        renderAlertsList();
+    }
+    console.log("[Alerts] Merged with backend data.");
+});

@@ -3,8 +3,66 @@
  * CheapShark API Docs: https://apidocs.cheapshark.com/
  */
 
+import * as Currency from './currency.js';
+export { Currency };
+
 const BASE_URL = 'https://www.cheapshark.com/api/1.0';
 const PROXY_URL = '/.netlify/functions/cheapshark-proxy';
+
+/**
+ * A centralized, resilient fetch utility that handles proxy failover,
+ * environment detection, and standardized error handling.
+ */
+async function stableFetch(targetUrl, options = {}, internalProxy = null, useWrapper = false) {
+    const attempts = [];
+    
+    // 1. PROJECT PROXY (Netlify Function) - Primary for Production
+    if (internalProxy) {
+        attempts.push({ name: 'project-proxy', url: internalProxy, type: 'direct' });
+    }
+
+    // 2. DIRECT FETCH - Primary for Local Dev (if lucky) or if CORS is enabled on API
+    attempts.push({ name: 'direct', url: targetUrl, type: 'direct' });
+
+    // 3. PUBLIC CORS PROXIES - Fail-safe fallbacks
+    attempts.push({ name: 'corsproxy.io', url: `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`, type: 'direct' });
+    attempts.push({ name: 'allorigins', url: `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`, type: 'wrapper' });
+
+    for (const attempt of attempts) {
+        try {
+            console.log(`[API] Attempting ${attempt.name} -> ${attempt.url}`);
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 8000);
+            
+            const res = await fetch(attempt.url, { ...options, signal: controller.signal });
+            clearTimeout(id);
+
+            if (res.ok) {
+                if (attempt.type === 'wrapper') {
+                    try {
+                        const outer = await res.json();
+                        if (!outer.contents) throw new Error("Wrapper contents missing");
+                        const inner = typeof outer.contents === 'string' ? JSON.parse(outer.contents) : outer.contents;
+                        return {
+                            ok: true,
+                            json: async () => inner,
+                            text: async () => typeof outer.contents === 'string' ? outer.contents : JSON.stringify(outer.contents),
+                            headers: new Headers()
+                        };
+                    } catch (e) {
+                        console.warn(`[API] ${attempt.name} parse error:`, e.message);
+                        continue;
+                    }
+                }
+                return res;
+            }
+            console.warn(`[API] ${attempt.name} failed with status ${res.status}`);
+        } catch (e) {
+            console.warn(`[API] ${attempt.name} error:`, e.message);
+        }
+    }
+    throw new Error(`All fetch attempts failed for: ${targetUrl}`);
+}
 
 /**
  * Fetch a list of deals based on query parameters.
@@ -13,92 +71,33 @@ const PROXY_URL = '/.netlify/functions/cheapshark-proxy';
  */
 export async function fetchDeals(params = {}) {
     try {
-        // Prepare URL for Proxy
-        const proxyUrl = new URL(window.location.origin + PROXY_URL);
-        proxyUrl.searchParams.append('endpoint', 'deals');
-        Object.keys(params).forEach(key => proxyUrl.searchParams.append(key, params[key]));
+        const query = new URLSearchParams(params).toString();
+        const targetUrl = `${BASE_URL}/deals?${query}`;
+        const internalProxy = `${PROXY_URL}?endpoint=deals&${query}`;
 
-        console.log(`Fetching deals via proxy: ${proxyUrl}`);
-        let response = await fetch(proxyUrl);
+        const res = await stableFetch(targetUrl, {}, internalProxy);
+        const deals = await res.json();
+        const totalPages = parseInt(res.headers.get('X-Total-Page-Count')) || 1;
         
-        let deals, totalPages;
-
-        if (response.ok) {
-            deals = await response.json();
-            totalPages = parseInt(response.headers.get('X-Total-Page-Count')) || 1;
-            return { deals, totalPages };
-        } 
-        
-        // If Proxy failed (likely 404 on local or 500 on server), try next methods
-        console.warn("CheapShark Proxy failed, trying direct or public CORS proxies...");
-        
-        const directUrl = new URL(`${BASE_URL}/deals`);
-        Object.keys(params).forEach(key => directUrl.searchParams.append(key, params[key]));
-        const fullUrl = directUrl.toString();
-
-        // Sequential attempts for maximum resilience
-        const attempts = [
-            { name: 'direct', url: fullUrl, type: 'direct' },
-            { name: 'corsproxy.io', url: `https://corsproxy.io/?url=${encodeURIComponent(fullUrl)}`, type: 'direct' },
-            { name: 'allorigins', url: `https://api.allorigins.win/get?url=${encodeURIComponent(fullUrl)}`, type: 'wrapper' }
-        ];
-
-        for (const attempt of attempts) {
-            try {
-                console.log(`Attempting ${attempt.name} fetch: ${attempt.url}`);
-                const res = await fetch(attempt.url);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (attempt.type === 'wrapper') {
-                        deals = JSON.parse(data.contents);
-                        totalPages = 1; 
-                    } else {
-                        deals = data;
-                        totalPages = parseInt(res.headers.get('X-Total-Page-Count')) || 1;
-                    }
-                    console.log(`Successfully fetched deals via ${attempt.name}`);
-                    return { deals, totalPages };
-                }
-            } catch (e) {
-                console.warn(`${attempt.name} failed:`, e.message);
-            }
-        }
-        
-        throw new Error("All fetching methods failed for deals");
+        return { deals, totalPages };
     } catch (error) {
         console.error("Could not fetch deals:", error);
         return { deals: [], totalPages: 0 };
     }
 }
 
-export async function fetchGameDetails(gameId, retries = 2) {
+export async function fetchGameDetails(gameId) {
     if (!gameId) return null;
-    
     try {
-        const proxyUrl = `${PROXY_URL}?endpoint=games&id=${gameId}`;
-        const response = await fetch(proxyUrl);
-        if (response.ok) return await response.json();
-    } catch (e) {
-        console.warn("Proxy failed for fetchGameDetails, trying direct...");
-    }
+        const targetUrl = `${BASE_URL}/games?id=${gameId}`;
+        const internalProxy = `${PROXY_URL}?endpoint=games&id=${gameId}`;
 
-    for (let i = 0; i < retries; i++) {
-        try {
-            const response = await fetch(`${BASE_URL}/games?id=${gameId}`);
-            if (!response.ok) {
-                if (response.status === 429) {
-                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-                    continue;
-                }
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            if (i === retries - 1) return null;
-            await new Promise(r => setTimeout(r, 500));
-        }
+        const res = await stableFetch(targetUrl, {}, internalProxy);
+        return await res.json();
+    } catch (error) {
+        console.error("Could not fetch game details:", error);
+        return null;
     }
-    return null;
 }
 
 /**
@@ -110,18 +109,13 @@ export async function searchGames(title) {
     if (!title || title.length < 2) return [];
 
     try {
-        const proxyUrl = `${PROXY_URL}?endpoint=games&title=${encodeURIComponent(title)}&limit=8`;
-        const response = await fetch(proxyUrl);
-        if (response.ok) return await response.json();
-    } catch (e) {
-        console.warn("Proxy failed for searchGames, trying direct...");
-    }
+        const targetUrl = `${BASE_URL}/games?title=${encodeURIComponent(title)}&limit=8`;
+        const internalProxy = `${PROXY_URL}?endpoint=games&title=${encodeURIComponent(title)}&limit=8`;
 
-    try {
-        const response = await fetch(`${BASE_URL}/games?title=${encodeURIComponent(title)}&limit=8`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return await response.json();
+        const res = await stableFetch(targetUrl, {}, internalProxy);
+        return await res.json();
     } catch (error) {
+        console.error("Search failed:", error);
         return [];
     }
 }
@@ -136,18 +130,11 @@ export async function fetchStores() {
     if (cachedStores) return JSON.parse(cachedStores);
 
     try {
-        const proxyUrl = `${PROXY_URL}?endpoint=stores`;
-        let response = await fetch(proxyUrl);
-        
-        let stores;
-        if (response.ok) {
-            stores = await response.json();
-        } else {
-            console.warn("CheapShark Stores Proxy failed, falling back to direct...");
-            response = await fetch(`${BASE_URL}/stores`);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            stores = await response.json();
-        }
+        const targetUrl = `${BASE_URL}/stores`;
+        const internalProxy = `${PROXY_URL}?endpoint=stores`;
+
+        const res = await stableFetch(targetUrl, {}, internalProxy);
+        const stores = await res.json();
         
         const activeStores = stores.filter(store => store.isActive === 1);
         sessionStorage.setItem('cheapshark_stores', JSON.stringify(activeStores));
@@ -169,34 +156,19 @@ export function getStoreIconUrl(relativePath) {
     return `https://www.cheapshark.com${relativePath}`;
 }
 
-export async function fetchDealDetails(dealId, retries = 2) {
+export async function fetchDealDetails(dealId) {
     if (!dealId) return null;
     
     try {
-        const proxyUrl = `${PROXY_URL}?endpoint=deals&id=${encodeURIComponent(dealId)}`;
-        const response = await fetch(proxyUrl);
-        if (response.ok) return await response.json();
-    } catch (e) {
-        console.warn("Proxy failed for fetchDealDetails, trying direct...");
-    }
+        const targetUrl = `${BASE_URL}/deals?id=${encodeURIComponent(dealId)}`;
+        const internalProxy = `${PROXY_URL}?endpoint=deals&id=${encodeURIComponent(dealId)}`;
 
-    for (let i = 0; i < retries; i++) {
-        try {
-            const response = await fetch(`${BASE_URL}/deals?id=${encodeURIComponent(dealId)}`);
-            if (!response.ok) {
-                if (response.status === 429) {
-                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-                    continue;
-                }
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            if (i === retries - 1) return null;
-            await new Promise(r => setTimeout(r, 500));
-        }
+        const res = await stableFetch(targetUrl, {}, internalProxy);
+        return await res.json();
+    } catch (error) {
+        console.error("Could not fetch deal details:", error);
+        return null;
     }
-    return null;
 }
 
 /**
@@ -209,83 +181,34 @@ export async function fetchDealDetails(dealId, retries = 2) {
 export async function fetchSteamAppDetails(steamAppID, lang = 'ko') {
     if (!steamAppID) return null;
 
-    // Map our internal lang ('ko', 'en') to Steam API's expected 'l' parameter
     const steamLang = lang === 'en' ? 'english' : 'korean';
     const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${steamAppID}&l=${steamLang}`;
+    const internalProxy = `/.netlify/functions/steam-details?appids=${steamAppID}&l=${steamLang}`;
 
-    // Priority: Use our own Netlify functions (Zero CORS issues, very fast)
-    // Fallback: Existing public proxies (for local dev without netlify-cli)
-    const proxies = [
-        { name: 'netlify-func', url: `/.netlify/functions/steam-details?appids=${steamAppID}&l=${steamLang}`, type: 'json' },
-        { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
-        { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(steamUrl)}`, type: 'json' },
-        { name: 'allorigins-get', url: `https://api.allorigins.win/get?url=${encodeURIComponent(steamUrl)}`, type: 'wrapper' },
-    ];
-
-    for (const proxy of proxies) {
-        try {
-            console.log(`Attempting fetch via ${proxy.name}...`);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // Shorter timeout for faster failover
-
-            const response = await fetch(proxy.url, { 
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                console.warn(`Proxy ${proxy.name} failed with status ${response.status}`);
-                continue;
-            }
-
-            let data;
-            const textData = await response.text();
+    try {
+        const res = await stableFetch(steamUrl, {}, internalProxy);
+        const data = await res.json();
+        
+        const appKey = Object.keys(data)[0];
+        if (appKey && data[appKey] && data[appKey].success) {
+            let steamData = data[appKey].data;
             
-            try {
-                if (proxy.type === 'wrapper') {
-                    const wrapper = JSON.parse(textData);
-                    data = JSON.parse(wrapper.contents);
-                } else {
-                    data = JSON.parse(textData);
-                }
-            } catch (e) {
-                console.warn(`Failed to parse JSON from ${proxy.name}:`, e.message);
-                continue;
-            }
-
-            // Steam API returns { "APPID": { success: true, data: { ... } } }
-            const appKey = Object.keys(data)[0];
-            if (appKey && data[appKey] && data[appKey].success) {
-                console.log(`Successfully fetched Steam data via proxy: ${proxy.url}`);
-                
-                let steamData = data[appKey].data;
-                // Force HTTPS for all Steam-hosted assets to avoid mixed content issues on GitHub Pages
-                const forceHttps = (obj) => {
-                    for (let key in obj) {
-                        if (typeof obj[key] === 'string' && obj[key].startsWith('http://')) {
-                            obj[key] = obj[key].replace('http://', 'https://');
-                        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-                            forceHttps(obj[key]);
-                        }
+            // Force HTTPS for mixed content prevention
+            const forceHttps = (obj) => {
+                for (let key in obj) {
+                    if (typeof obj[key] === 'string' && obj[key].startsWith('http://')) {
+                        obj[key] = obj[key].replace('http://', 'https://');
+                    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+                        forceHttps(obj[key]);
                     }
-                };
-                forceHttps(steamData);
-                
-                return steamData;
-            }
-            console.warn(`Steam API success false for app ${steamAppID} via ${proxy.url}`);
-            continue; 
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.warn(`CORS proxy TIMEOUT (${proxy.url})`);
-            } else {
-                console.warn(`CORS proxy Error (${proxy.url}):`, error.message);
-            }
-            continue; 
+                }
+            };
+            forceHttps(steamData);
+            return steamData;
         }
+    } catch (error) {
+        console.error(`Steam details failed for ${steamAppID}:`, error.message);
     }
-
-    console.error(`Could not fetch Steam details for app ${steamAppID} via any proxy.`);
     return null;
 }
 
@@ -331,10 +254,8 @@ export async function translateToKorean(text) {
     try {
         const translatedChunks = await Promise.all(chunks.map(async (chunk) => {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=${encodeURIComponent(chunk)}`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const res = await stableFetch(url);
             const data = await res.json();
-            // Response shape: [[["translated","original",...], ...], ...]
             return data[0].map(part => part[0]).join('');
         }));
         return translatedChunks.join('');
@@ -395,63 +316,17 @@ export async function fetchSteamReviews(steamAppID, count = 20) {
     if (!steamAppID) return null;
 
     const baseUrl = `https://store.steampowered.com/appreviews/${steamAppID}?json=1&language=all&num_per_page=${count}`;
-    const proxies = [
-        { name: 'netlify-func', url: `/.netlify/functions/steam-reviews?appid=${steamAppID}&count=${count}`, type: 'json' },
-        { name: 'allorigins-raw', url: `https://api.allorigins.win/raw?url=${encodeURIComponent(baseUrl)}`, type: 'json' },
-        { name: 'codetabs', url: `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(baseUrl)}`, type: 'json' }
-    ];
+    const internalProxy = `/.netlify/functions/steam-reviews?appid=${steamAppID}&count=${count}`;
 
-    for (const proxy of proxies) {
-        try {
-            console.log(`Attempting fetch reviews via ${proxy.name}...`);
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
+    try {
+        const res = await stableFetch(baseUrl, {}, internalProxy);
+        const data = await res.json();
 
-            const response = await fetch(proxy.url, { 
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!response.ok) continue;
-
-            const textData = await response.text();
-            let data;
-            try {
-                if (proxy.type === 'wrapper') {
-                    const wrapper = JSON.parse(textData);
-                    data = JSON.parse(wrapper.contents);
-                } else {
-                    data = JSON.parse(textData);
-                }
-            } catch (e) {
-                continue;
-            }
-
-            if (data && data.success && data.reviews) {
-                console.log(`Successfully fetched Steam reviews via proxy: ${proxy.url}`);
-                
-                // Force HTTPS for any URLs in reviews if present
-                const forceHttps = (obj) => {
-                    for (let key in obj) {
-                        if (typeof obj[key] === 'string' && obj[key].startsWith('http://')) {
-                            obj[key] = obj[key].replace('http://', 'https://');
-                        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-                            forceHttps(obj[key]);
-                        }
-                    }
-                };
-                forceHttps(data.reviews);
-                
-                return data.reviews;
-            }
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.warn(`Steam reviews TIMEOUT (${proxy.url})`);
-            } else {
-                console.warn(`Steam reviews proxy failed (${proxy.url}):`, error.message);
-            }
-            continue;
+        if (data && data.success && data.reviews) {
+            return data.reviews;
         }
+    } catch (error) {
+        console.error(`Steam reviews failed for ${steamAppID}:`, error.message);
     }
     return null;
 }
@@ -465,15 +340,12 @@ export async function setPriceAlert({ action = 'set', email, gameID, price }) {
     if (!email || !gameID) return false;
 
     try {
-        const url = new URL(`${BASE_URL}/alerts`);
-        url.searchParams.append('action', action);
-        url.searchParams.append('email', email);
-        url.searchParams.append('gameID', gameID);
-        if (price) url.searchParams.append('price', price);
+        const query = new URLSearchParams({ action, email, gameID, ...(price && { price }) }).toString();
+        const targetUrl = `${BASE_URL}/alerts?${query}`;
+        const internalProxy = `${PROXY_URL}?endpoint=alerts&${query}`;
 
-        const response = await fetch(url);
-        // CheapShark /alerts returns 1 (true) for success, 0 (false) for failure
-        const result = await response.text();
+        const res = await stableFetch(targetUrl, {}, internalProxy);
+        const result = await res.text();
         return result.trim() === '1' || result.trim() === 'true';
     } catch (error) {
         console.error("Could not set price alert:", error);
@@ -489,96 +361,127 @@ export async function fetchTopSellers() {
     // 0. Check cache first (5-minute expiry)
     const CACHE_KEY = 'top_sellers_cache';
     const CACHE_TIME_KEY = 'top_sellers_cache_time';
-    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-    const cachedData = sessionStorage.getItem(CACHE_KEY);
-    const cachedTime = sessionStorage.getItem(CACHE_TIME_KEY);
-    
-    if (cachedData && cachedTime && (Date.now() - parseInt(cachedTime) < CACHE_DURATION)) {
+    const CACHE_VERSION = 'v1.3'; // Bump this to force refresh after mapping fix
+    const cacheKey = `top_sellers_cache_${CACHE_VERSION}`;
+    const cachedData = localStorage.getItem(cacheKey);
+    if (cachedData) {
         console.log("Returning cached Top Sellers");
         return JSON.parse(cachedData);
     }
+    // Clear old versions
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('top_sellers_cache_') && key !== cacheKey) {
+            localStorage.removeItem(key);
+        }
+    }
 
     try {
-        // 1. Try Netlify Function first (Recommended for production)
-        const netlifyFuncUrl = '/.netlify/functions/steam-top-sellers';
+        const steamApiUrl = 'https://store.steampowered.com/api/featuredcategories?l=english';
+        const internalProxy = '/.netlify/functions/steam-top-sellers';
         
+        let items = [];
         try {
-            const response = await fetch(netlifyFuncUrl);
-            if (response.ok) {
-                const data = await response.json();
-                const items = data.top_sellers?.items || [];
-                sessionStorage.setItem(CACHE_KEY, JSON.stringify(items));
-                sessionStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-                return items;
+            // Try our custom combined top-sellers function first (Fastest)
+            const res = await stableFetch(steamApiUrl, {}, internalProxy);
+            const data = await res.json();
+            
+            // The Netlify function returns { top_sellers: { items: [ { title, salePrice, ... } ] } }
+            // Raw Steam API returns { top_sellers: { items: [ { id, name, ... } ] } }
+            if (data.top_sellers?.items) {
+                const firstItem = data.top_sellers.items[0];
+                // Check if it's already mapped (has title or salePrice) or raw Steam (has name or id)
+                if (firstItem && (firstItem.title || firstItem.salePrice)) {
+                    items = data.top_sellers.items;
+                } else {
+                    // It's raw Steam data, we need to map it ourselves
+                    throw new Error("Raw Steam data received, needs mapping");
+                }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.log("Using manual mapping for Top Sellers...");
+        }
 
-        // Fallback: Client-side mapping
-        // (Existing robust logic remains but we cache the final result)
-        const fetchFromProxy = async (proxyBase) => {
-            const steamApiUrl = 'https://store.steampowered.com/api/featuredcategories?l=english';
-            const url = `${proxyBase}${encodeURIComponent(steamApiUrl)}`;
-            try {
-                const res = await fetch(url);
-                if (!res.ok) return [];
-                const data = proxyBase.includes('allorigins') 
-                    ? JSON.parse((await res.json()).contents) 
-                    : await res.json();
-                
-                const combinedIDs = [];
-                const seenIDs = new Set();
-                ['top_sellers', 'new_releases', 'specials', 'coming_soon'].forEach(cat => {
-                    if (data[cat] && data[cat].items) {
-                        data[cat].items.forEach(item => {
-                            if (!seenIDs.has(item.id)) {
-                                seenIDs.add(item.id);
-                                combinedIDs.push(item.id);
+        if (items.length === 0) {
+            // Fallback: Fetch from Steam categories and map manually via stableFetch
+            const res = await stableFetch(steamApiUrl);
+            const data = await res.json();
+            
+            const combinedIDs = [];
+            const seenIDs = new Set();
+            ['top_sellers', 'new_releases', 'specials', 'coming_soon'].forEach(cat => {
+                if (data[cat] && data[cat].items) {
+                    data[cat].items.forEach(item => {
+                        if (!seenIDs.has(item.id)) {
+                            seenIDs.add(item.id);
+                            combinedIDs.push(item.id);
+                        }
+                    });
+                }
+            });
+
+            const validDeals = [];
+            const seenGameIDs = new Set();
+            const BATCH_SIZE = 4;
+
+            for (let i = 0; i < combinedIDs.length; i += BATCH_SIZE) {
+                const batch = combinedIDs.slice(i, i + BATCH_SIZE);
+                const batchResults = await Promise.all(batch.map(async (appID) => {
+                    const rawItem = [].concat(...Object.values(data).map(c => c.items || [])).find(i => i.id === appID);
+                    if (!rawItem) return null;
+
+                    try {
+                        const { deals } = await fetchDeals({ steamAppID: appID, pageSize: 1, sortBy: 'Price' });
+                        if (deals.length > 0) {
+                            const deal = deals[0];
+                            const clean = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            const sTitle = clean(rawItem.name || '');
+                            const dTitle = clean(deal.title || '');
+                            
+                            // To be valid, one must contain a significant part of the other
+                            const isMatch = (sTitle && dTitle) && (sTitle.includes(dTitle) || dTitle.includes(sTitle));
+                            
+                            if (isMatch) {
+                                if (!seenGameIDs.has(deal.gameID)) {
+                                    seenGameIDs.add(deal.gameID);
+                                    return deal;
+                                }
+                            } else {
+                                console.warn(`[Top Sellers] Mismatch for ID ${appID}: Steam Title "${rawItem.name}" vs CheapShark Title "${deal.title}"`);
                             }
-                        });
-                    }
-                });
-                return combinedIDs;
-            } catch (err) { return []; }
-        };
+                        }
+                    } catch (err) {}
+                    
+                    // Fallback for this specific item: Use raw Steam data if CheapShark failed or mismatched
+                    return {
+                        title: rawItem.name || `Steam Game #${appID}`,
+                        gameID: `steam_${appID}`,
+                        salePrice: rawItem.final_price ? (rawItem.final_price / 100).toString() : '0',
+                        normalPrice: rawItem.original_price ? (rawItem.original_price / 100).toString() : '0',
+                        savings: (rawItem.discount_percent || 0).toString(),
+                        thumb: rawItem.large_capsule_image || rawItem.small_capsule_image || '',
+                        external: `https://store.steampowered.com/app/${appID}`
+                    };
+                }));
 
-        let candidateAppIDs = await fetchFromProxy('https://corsproxy.io/?url=');
-        if (candidateAppIDs.length === 0) {
-            candidateAppIDs = await fetchFromProxy('https://api.allorigins.win/get?url=');
+                validDeals.push(...batchResults.filter(d => d !== null));
+                if (validDeals.length >= 10) break; 
+            }
+
+            // Ensure savings is calculated if discount_percent is 0 but price is lower (Last resort fix)
+            validDeals.forEach(deal => {
+                if (deal.savings === '0' && parseFloat(deal.salePrice) < parseFloat(deal.normalPrice)) {
+                    const diff = parseFloat(deal.normalPrice) - parseFloat(deal.salePrice);
+                    deal.savings = Math.round((diff / parseFloat(deal.normalPrice)) * 100).toString();
+                }
+            });
+
+            items = validDeals.slice(0, 10).map((deal, idx) => ({ ...deal, rank: idx + 1 }));
         }
-
-        if (candidateAppIDs.length === 0) return [];
-
-        const validDeals = [];
-        const seenGameIDs = new Set();
-        const BATCH_SIZE = 4; // Smaller batch for lower rate-limit risk
-
-        for (let i = 0; i < candidateAppIDs.length; i += BATCH_SIZE) {
-            const batch = candidateAppIDs.slice(i, i + BATCH_SIZE);
-            const batchResults = await Promise.all(batch.map(async (appID) => {
-                try {
-                    const { deals } = await fetchDeals({ steamAppID: appID, pageSize: 1 });
-                    if (deals.length > 0 && !seenGameIDs.has(deals[0].gameID)) {
-                        seenGameIDs.add(deals[0].gameID);
-                        return deals[0];
-                    }
-                } catch (err) {}
-                return null;
-            }));
-
-            validDeals.push(...batchResults.filter(d => d !== null));
-            if (validDeals.length >= 10) break;
-            // Subtle delay between batches if we are client-side mapping
-            await new Promise(r => setTimeout(r, 100));
-        }
-
-        const finalDeals = validDeals.slice(0, 10).map((deal, idx) => ({ ...deal, rank: idx + 1 }));
         
         // Cache the result
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(finalDeals));
-        sessionStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-        
-        return finalDeals;
+        localStorage.setItem(`top_sellers_cache_${CACHE_VERSION}`, JSON.stringify(items));
+        return items;
     } catch (error) {
         console.error("Could not fetch top sellers:", error);
         return [];
