@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 2. 이미 구글 스크립트가 로드되었다면 즉시 초기화
-    if (window.google && google.accounts) {
+    if ((window.google && google.accounts) || window._googleScriptLoaded) {
         initGoogleLogin();
     }
 

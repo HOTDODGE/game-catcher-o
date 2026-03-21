@@ -87,7 +87,7 @@
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" crossorigin="anonymous"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleLogin()"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer onload="typeof initGoogleLogin === 'function' ? initGoogleLogin() : (window._googleScriptLoaded = true)"></script>
     <script src="translation.js"></script>
     <script src="navbar.js"></script>
     <script type="module" src="auth.js"></script>
